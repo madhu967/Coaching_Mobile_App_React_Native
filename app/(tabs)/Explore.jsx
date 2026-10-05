@@ -84,8 +84,25 @@ const Explore = () => {
         })
       : "Recent";
 
+    const topics = item.topics || [];
+    const totalCount = item.topicCount || topics.length || 0;
+    const completedList = Array.isArray(item.completedTopicIds) ? item.completedTopicIds : [];
+    const completedCount = completedList.length;
+    const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
     return (
       <View style={styles.cardContainer}>
+        {/* Personalized Course Badge if created via Needs Generator */}
+        {item.isPersonalized && (
+          <View style={styles.personalizedTrackBadge}>
+            <Ionicons name="sparkles" size={12} color={Colors.PRIMARY} />
+            <Text style={styles.personalizedTrackBadgeText}>Personalized Needs-Based Track</Text>
+            {item.targetTimeline ? (
+              <Text style={styles.personalizedTimelineText}>• {item.targetTimeline}</Text>
+            ) : null}
+          </View>
+        )}
+
         {/* Card Header */}
         <TouchableOpacity
           activeOpacity={0.8}
@@ -93,7 +110,7 @@ const Explore = () => {
           style={styles.cardHeader}
         >
           <View style={styles.iconBox}>
-            <Ionicons name="book" size={26} color={Colors.PRIMARY} />
+            <Ionicons name={item.isPersonalized ? "ribbon" : "book"} size={26} color={Colors.PRIMARY} />
           </View>
 
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -109,11 +126,17 @@ const Explore = () => {
               </TouchableOpacity>
             </View>
 
+            {item.goal ? (
+              <Text style={styles.goalSnippetText} numberOfLines={1}>
+                🎯 Goal: {item.goal}
+              </Text>
+            ) : null}
+
             <View style={styles.metaRow}>
               <View style={styles.badge}>
                 <Ionicons name="layers-outline" size={13} color={Colors.PRIMARY} />
                 <Text style={styles.badgeText}>
-                  {item.topicCount || item.topics?.length || 0} Topics
+                  {totalCount} Topics
                 </Text>
               </View>
 
@@ -122,24 +145,46 @@ const Explore = () => {
           </View>
         </TouchableOpacity>
 
+        {/* Learning Progress Bar */}
+        <View style={styles.courseProgressSection}>
+          <View style={styles.courseProgressTrack}>
+            <View style={[styles.courseProgressFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+            <Text style={styles.courseProgressSubtext}>
+              {completedCount} of {totalCount} topics mastered
+            </Text>
+            <Text style={styles.courseProgressPercent}>{progressPercent}%</Text>
+          </View>
+        </View>
+
         {/* Expandable Topic List */}
         {isExpanded && (
           <View style={styles.topicList}>
             <Text style={styles.topicHeaderTitle}>Course Curriculum:</Text>
-            {item.topics && item.topics.length > 0 ? (
-              item.topics.map((topic, tIndex) => (
-                <View key={topic.id || tIndex} style={styles.topicItem}>
-                  <View style={styles.topicIndexBadge}>
-                    <Text style={styles.topicIndexText}>{tIndex + 1}</Text>
+            {topics && topics.length > 0 ? (
+              topics.map((topic, tIndex) => {
+                const isTopicDone = completedList.includes(topic.id);
+                return (
+                  <View key={topic.id || tIndex} style={styles.topicItem}>
+                    <View style={[styles.topicIndexBadge, isTopicDone && { backgroundColor: "#16a34a" }]}>
+                      {isTopicDone ? (
+                        <Ionicons name="checkmark" size={12} color={Colors.WHITE} />
+                      ) : (
+                        <Text style={styles.topicIndexText}>{tIndex + 1}</Text>
+                      )}
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={[styles.topicItemTitle, isTopicDone && { textDecorationLine: "line-through", color: "#64748b" }]}>
+                        {topic.title}
+                      </Text>
+                      {topic.description ? (
+                        <Text style={styles.topicItemDesc}>{topic.description}</Text>
+                      ) : null}
+                    </View>
                   </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.topicItemTitle}>{topic.title}</Text>
-                    {topic.description ? (
-                      <Text style={styles.topicItemDesc}>{topic.description}</Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))
+                );
+              })
             ) : (
               <Text style={styles.emptyTopicsText}>No topic details available.</Text>
             )}
@@ -175,12 +220,31 @@ const Explore = () => {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/AddCourse")}
+          onPress={() => router.push("/courses/personalized")}
           style={styles.addCourseHeaderBtn}
         >
-          <Ionicons name="add" size={24} color={Colors.WHITE} />
+          <Ionicons name="sparkles" size={20} color={Colors.WHITE} />
         </TouchableOpacity>
       </View>
+
+      {/* Hero Banner: Create Course Based on Needs */}
+      <TouchableOpacity
+        style={styles.needsBanner}
+        onPress={() => router.push("/courses/personalized")}
+        activeOpacity={0.85}
+      >
+        <View style={{ flex: 1 }}>
+          <View style={styles.needsBannerTag}>
+            <Ionicons name="sparkles" size={11} color={Colors.PRIMARY} />
+            <Text style={styles.needsBannerTagText}>Step 3 Unique Feature</Text>
+          </View>
+          <Text style={styles.needsBannerTitle}>Create Course Based on Your Needs</Text>
+          <Text style={styles.needsBannerDesc}>
+            Select your Goal, Skill Level, Study Time & Target Date
+          </Text>
+        </View>
+        <Ionicons name="arrow-forward-circle" size={28} color={Colors.PRIMARY} />
+      </TouchableOpacity>
 
       {/* Content */}
       {loading ? (
@@ -195,12 +259,17 @@ const Explore = () => {
           <Ionicons name="compass-outline" size={70} color={Colors.GRAY} />
           <Text style={styles.emptyTitle}>No Courses Created Yet</Text>
           <Text style={styles.emptySubtitle}>
-            Start your learning journey by generating your first AI-powered course!
+            Start your learning journey by generating your custom needs-based course!
           </Text>
-          <View style={{ width: "100%", marginTop: 20 }}>
+          <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
             <Button
-              text={"+ Create Your First Course"}
+              text={"✨ Create Course Based on Your Needs"}
               type="fill"
+              onPress={() => router.push("/courses/personalized")}
+            />
+            <Button
+              text={"+ Quick AI Course"}
+              type="outline"
               onPress={() => router.push("/AddCourse")}
             />
           </View>
@@ -411,6 +480,102 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     lineHeight: 20,
+  },
+  needsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    elevation: 2,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  needsBannerTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginBottom: 6,
+    gap: 4,
+  },
+  needsBannerTagText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.PRIMARY,
+  },
+  needsBannerTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 15,
+    color: "#1e293b",
+  },
+  needsBannerDesc: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    marginTop: 2,
+  },
+  personalizedTrackBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginBottom: 10,
+    gap: 4,
+  },
+  personalizedTrackBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  personalizedTimelineText: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.GRAY,
+  },
+  goalSnippetText: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: "#475569",
+    marginTop: 3,
+  },
+  courseProgressSection: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  courseProgressTrack: {
+    height: 6,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  courseProgressFill: {
+    height: "100%",
+    backgroundColor: Colors.PRIMARY,
+    borderRadius: 3,
+  },
+  courseProgressSubtext: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.GRAY,
+  },
+  courseProgressPercent: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
   },
 });
 

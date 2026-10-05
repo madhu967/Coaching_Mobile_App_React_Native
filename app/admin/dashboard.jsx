@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Modal,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -17,19 +18,22 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { getAllCourses, removeCourse } from "../../services/courseStorage";
 import { isAdminLoggedIn, logoutAdmin, getAdminCredentials } from "../../services/adminAuth";
+import { getLmsStore, saveLmsStore, addTeacher, deleteTeacher } from "../../services/lmsStore";
 import { db } from "../../config/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+import Button from "../../components/Shared/Button";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const creds = getAdminCredentials();
 
-  // Navigation tab state: 'overview' | 'students' | 'courses' | 'settings'
+  // Navigation tab state: 'overview' | 'students' | 'teachers' | 'courses_classes' | 'settings'
   const [activeTab, setActiveTab] = useState("overview");
 
   // Data states
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [lmsStore, setLmsStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -37,6 +41,22 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [expandedStudentEmail, setExpandedStudentEmail] = useState(null);
+
+  // Broadcast Notification Modal
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  // Add Teacher Modal
+  const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
+  const [teacherName, setTeacherName] = useState("");
+  const [teacherSubject, setTeacherSubject] = useState("");
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherPassword, setTeacherPassword] = useState("");
+  const [teacherPhone, setTeacherPhone] = useState("");
+  const [addingTeacher, setAddingTeacher] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState({});
 
   // Load all data
   const loadAllData = async () => {
@@ -47,11 +67,15 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 1. Fetch courses
-      const courseList = await getAllCourses();
-      setCourses(courseList || []);
+      const [courseList, storeData] = await Promise.all([
+        getAllCourses(),
+        getLmsStore(),
+      ]);
 
-      // 2. Fetch users from Firestore with a 2-second timeout
+      setCourses(courseList || []);
+      setLmsStore(storeData || null);
+
+      // Fetch users from Firestore with a 2-second timeout
       let userListFromDb = [];
       try {
         const timeoutPromise = new Promise((_, reject) =>
@@ -64,14 +88,10 @@ export default function AdminDashboard() {
         snapshot.forEach((doc) => {
           userListFromDb.push({ id: doc.id, ...doc.data() });
         });
-      } catch (err) {
-        // Fallback gracefully if Firestore is not available
-      }
+      } catch (err) {}
 
-      // 3. Aggregate unique students from Firestore users + course creators
+      // Aggregate students
       const studentMap = new Map();
-
-      // Seed from Firestore users
       userListFromDb.forEach((u) => {
         if (u.email) {
           studentMap.set(u.email.toLowerCase(), {
@@ -82,7 +102,6 @@ export default function AdminDashboard() {
         }
       });
 
-      // Group courses under their creators
       (courseList || []).forEach((c) => {
         const email = (c.userEmail || "guest@coachingapp.com").toLowerCase();
         if (!studentMap.has(email)) {
@@ -95,7 +114,6 @@ export default function AdminDashboard() {
         studentMap.get(email).courses.push(c);
       });
 
-      // Format student list with metrics
       const aggregatedStudents = Array.from(studentMap.values()).map((s) => {
         let studentTotalTopics = 0;
         let studentCompletedTopics = 0;
@@ -123,11 +141,10 @@ export default function AdminDashboard() {
         };
       });
 
-      // Sort students by most active (most courses created)
       aggregatedStudents.sort((a, b) => b.totalCourses - a.totalCourses);
       setStudents(aggregatedStudents);
     } catch (e) {
-      console.error("Admin dashboard data load error:", e);
+      console.error("Admin data load error:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -149,9 +166,8 @@ export default function AdminDashboard() {
     loadAllData();
   };
 
-  // Admin Logout
   const handleAdminLogout = () => {
-    Alert.alert("Admin Logout", "Are you sure you want to log out of Admin Console?", [
+    Alert.alert("Admin Logout", "Sign out of Admin Console?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Log Out",
@@ -164,7 +180,6 @@ export default function AdminDashboard() {
     ]);
   };
 
-  // Delete Course
   const handleDeleteCourse = (course) => {
     Alert.alert(
       "Delete Course",
@@ -185,38 +200,126 @@ export default function AdminDashboard() {
     );
   };
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastMsg.trim()) {
+      Alert.alert("Missing Fields", "Please enter notification title and message.");
+      return;
+    }
+
+    setBroadcasting(true);
+    try {
+      const store = await getLmsStore();
+      const newNotif = {
+        id: "notif-" + Date.now(),
+        title: "📢 " + broadcastTitle.trim(),
+        message: broadcastMsg.trim(),
+        type: "announcement",
+        timestamp: "Just now (Admin)",
+        read: false,
+      };
+
+      const updated = {
+        ...store,
+        notifications: [newNotif, ...store.notifications],
+      };
+      await saveLmsStore(updated);
+
+      Alert.alert("Broadcast Sent! 🚀", "All students received the announcement.");
+      setShowBroadcastModal(false);
+      setBroadcastTitle("");
+      setBroadcastMsg("");
+      loadAllData();
+    } catch (e) {
+      Alert.alert("Error", "Could not dispatch broadcast.");
+    } finally {
+      setBroadcasting(false);
+    }
+  };
+
+  const handleAddTeacher = async () => {
+    if (!teacherName.trim() || !teacherSubject.trim() || !teacherEmail.trim() || !teacherPassword.trim()) {
+      Alert.alert("Missing Fields", "Please enter teacher name, subject, email, and password.");
+      return;
+    }
+
+    setAddingTeacher(true);
+    try {
+      await addTeacher({
+        name: teacherName.trim(),
+        subject: teacherSubject.trim(),
+        email: teacherEmail.trim(),
+        password: teacherPassword.trim(),
+        phone: teacherPhone.trim() || "+1 415-555-0199",
+      });
+
+      Alert.alert(
+        "Faculty Member Added! 🎓",
+        `Teacher ${teacherName} has been registered.\n\nThey can now log into the Teacher Portal with:\n• Email: ${teacherEmail}\n• Password: ${teacherPassword}`
+      );
+      setShowAddTeacherModal(false);
+      setTeacherName("");
+      setTeacherSubject("");
+      setTeacherEmail("");
+      setTeacherPassword("");
+      setTeacherPhone("");
+      loadAllData();
+    } catch (err) {
+      Alert.alert("Registration Error", err.message || "Failed to register teacher.");
+    } finally {
+      setAddingTeacher(false);
+    }
+  };
+
+  const handleDeleteTeacher = (teacher) => {
+    Alert.alert(
+      "Remove Teacher",
+      `Are you sure you want to remove ${teacher.name}? Their faculty login access will be permanently revoked.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await deleteTeacher(teacher.id);
+            Alert.alert("Removed", `${teacher.name} has been removed.`);
+            loadAllData();
+          },
+        },
+      ]
+    );
+  };
+
+  const togglePasswordReveal = (teacherId) => {
+    setRevealedPasswords((prev) => ({
+      ...prev,
+      [teacherId]: !prev[teacherId],
+    }));
+  };
+
   // Metrics
   const totalCoursesCount = courses.length;
   const totalStudentsCount = students.length;
-  let totalTopicsCreated = 0;
-  courses.forEach((c) => {
-    totalTopicsCreated += c.topics?.length || c.topicCount || 0;
-  });
+  const totalTeachersCount = lmsStore?.teachers?.length || 3;
+  const totalClassesCount = lmsStore?.classes?.length || 4;
+  const totalTestsCount = lmsStore?.tests?.length || 3;
+  const totalAssignmentsCount = lmsStore?.assignments?.length || 3;
 
   const top5Students = students.slice(0, 5);
 
-  // Filter courses for Courses tab
-  const filteredCourses = courses.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      c.courseTitle?.toLowerCase().includes(q) ||
-      c.userEmail?.toLowerCase().includes(q)
-    );
-  });
-
-  // Filter students for Students tab
   const filteredStudents = students.filter((s) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return (
-      s.name?.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q)
-    );
+    return s.name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q);
+  });
+
+  const filteredCourses = courses.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return c.courseTitle?.toLowerCase().includes(q) || c.userEmail?.toLowerCase().includes(q);
   });
 
   /* =======================================================================
-     TAB 1: OVERVIEW SCREEN
+     TAB 1: OVERVIEW & ANALYTICS
      ======================================================================= */
   const renderOverviewTab = () => (
     <ScrollView
@@ -225,156 +328,141 @@ export default function AdminDashboard() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
       }
     >
-      {/* Welcome Admin Banner */}
-      <View style={styles.adminHeroCard}>
+      {/* Platform Hero Banner */}
+      <View style={styles.heroCard}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
           <View style={{ flex: 1 }}>
-            <View style={styles.heroPillBadge}>
-              <Ionicons name="shield-checkmark" size={13} color={Colors.WHITE} />
-              <Text style={styles.heroPillText}>Administrator Portal</Text>
+            <View style={styles.heroPill}>
+              <Ionicons name="shield-checkmark" size={12} color={Colors.WHITE} />
+              <Text style={styles.heroPillText}>Coaching Guru Admin</Text>
             </View>
-            <Text style={styles.heroTitle}>Platform Overview</Text>
+            <Text style={styles.heroTitle}>Master Analytics</Text>
             <Text style={styles.heroSubtitle}>
-              Monitoring all courses, students, and curriculum activity
+              Full institutional control across students, teachers & curriculum
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.heroLogoutBtn}
-            onPress={handleAdminLogout}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="log-out-outline" size={20} color={Colors.WHITE} />
+
+          <TouchableOpacity style={styles.broadcastIconBtn} onPress={() => setShowBroadcastModal(true)}>
+            <Ionicons name="megaphone" size={18} color={Colors.WHITE} />
           </TouchableOpacity>
         </View>
 
-        {/* 3 Key Metrics Cards inside Banner */}
-        <View style={styles.heroStatsRow}>
-          <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatVal}>{totalCoursesCount}</Text>
-            <Text style={styles.heroStatLabel}>Total Courses</Text>
+        {/* 6 Key Analytics Metric Tiles */}
+        <View style={styles.metricGrid}>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalStudentsCount}</Text>
+            <Text style={styles.metricLabel}>Students</Text>
           </View>
-          <View style={styles.heroStatDivider} />
-          <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatVal}>{totalStudentsCount}</Text>
-            <Text style={styles.heroStatLabel}>Students</Text>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalTeachersCount}</Text>
+            <Text style={styles.metricLabel}>Teachers</Text>
           </View>
-          <View style={styles.heroStatDivider} />
-          <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatVal}>{totalTopicsCreated}</Text>
-            <Text style={styles.heroStatLabel}>Curriculums</Text>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalCoursesCount}</Text>
+            <Text style={styles.metricLabel}>Courses</Text>
+          </View>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalClassesCount}</Text>
+            <Text style={styles.metricLabel}>Live Classes</Text>
+          </View>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalTestsCount}</Text>
+            <Text style={styles.metricLabel}>Tests</Text>
+          </View>
+          <View style={styles.metricTile}>
+            <Text style={styles.metricVal}>{totalAssignmentsCount}</Text>
+            <Text style={styles.metricLabel}>Assignments</Text>
           </View>
         </View>
       </View>
 
-      {/* Top 5 Students Section */}
+      {/* Broadcast Announcement Bar */}
+      <TouchableOpacity
+        style={styles.broadcastBanner}
+        onPress={() => setShowBroadcastModal(true)}
+      >
+        <Ionicons name="megaphone-outline" size={20} color={Colors.PRIMARY} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.broadcastBannerTitle}>Send Platform Announcement</Text>
+          <Text style={styles.broadcastBannerSub}>Broadcast notifications to all active student apps</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Colors.PRIMARY} />
+      </TouchableOpacity>
+
+      {/* Top 5 Students List */}
       <View style={styles.sectionHeaderRow}>
         <View>
-          <Text style={styles.sectionHeading}>Top Students</Text>
-          <Text style={styles.sectionSubheading}>Most active course creators</Text>
+          <Text style={styles.sectionHeading}>Top 5 Students</Text>
+          <Text style={styles.sectionSubheading}>Highest curriculum engagement</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            setActiveTab("students");
-            setSearchQuery("");
-          }}
-          style={styles.seeMoreBtn}
-        >
+        <TouchableOpacity onPress={() => setActiveTab("students")} style={styles.seeMoreBtn}>
           <Text style={styles.seeMoreBtnText}>View All ({students.length})</Text>
           <Ionicons name="arrow-forward" size={14} color={Colors.PRIMARY} />
         </TouchableOpacity>
       </View>
 
       {top5Students.length === 0 ? (
-        <View style={styles.emptyCardBox}>
-          <Ionicons name="people-outline" size={36} color={Colors.GRAY} />
-          <Text style={styles.emptyCardText}>No students recorded yet.</Text>
-        </View>
+        <Text style={styles.emptyNotice}>No students recorded yet.</Text>
       ) : (
         top5Students.map((student, idx) => (
           <TouchableOpacity
             key={student.email || idx}
-            activeOpacity={0.8}
+            style={styles.studentRankCard}
             onPress={() => {
               setActiveTab("students");
               setExpandedStudentEmail(student.email);
             }}
-            style={styles.studentRankCard}
           >
-            {/* Rank badge */}
             <View style={[styles.rankBadge, idx === 0 && { backgroundColor: "#ffd700" }]}>
               <Text style={[styles.rankBadgeText, idx === 0 && { color: "#854d0e" }]}>
                 #{idx + 1}
               </Text>
             </View>
 
-            {/* Avatar Circle */}
-            <View style={styles.studentAvatarCircle}>
-              <Text style={styles.studentAvatarInitial}>
-                {student.name.charAt(0).toUpperCase()}
-              </Text>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{student.name.charAt(0).toUpperCase()}</Text>
             </View>
 
-            {/* Info */}
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.studentNameText} numberOfLines={1}>
-                {student.name}
-              </Text>
-              <Text style={styles.studentEmailText} numberOfLines={1}>
-                {student.email}
-              </Text>
+              <Text style={styles.studentName} numberOfLines={1}>{student.name}</Text>
+              <Text style={styles.studentEmail} numberOfLines={1}>{student.email}</Text>
             </View>
 
-            {/* Courses and Progress */}
             <View style={{ alignItems: "flex-end" }}>
-              <View style={styles.courseCountPill}>
+              <View style={styles.countPill}>
                 <Ionicons name="book-outline" size={12} color={Colors.PRIMARY} />
-                <Text style={styles.courseCountPillText}>
-                  {student.totalCourses} {student.totalCourses === 1 ? "Course" : "Courses"}
-                </Text>
+                <Text style={styles.countPillText}>{student.totalCourses} Courses</Text>
               </View>
-              <Text style={styles.studentProgressText}>
-                {student.progressPercent}% Finished
-              </Text>
+              <Text style={styles.progressPctText}>{student.progressPercent}% Finished</Text>
             </View>
           </TouchableOpacity>
         ))
       )}
 
-      {/* Recent Created Courses Feed */}
+      {/* Faculty Directory Snapshot */}
       <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
         <View>
-          <Text style={styles.sectionHeading}>Recent Courses</Text>
-          <Text style={styles.sectionSubheading}>Latest AI generated curriculums</Text>
+          <Text style={styles.sectionHeading}>Faculty Overview</Text>
+          <Text style={styles.sectionSubheading}>Teaching staff & assigned subjects</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            setActiveTab("courses");
-            setSearchQuery("");
-          }}
-          style={styles.seeMoreBtn}
-        >
-          <Text style={styles.seeMoreBtnText}>View All ({courses.length})</Text>
+        <TouchableOpacity onPress={() => setActiveTab("teachers")} style={styles.seeMoreBtn}>
+          <Text style={styles.seeMoreBtnText}>Manage Faculty</Text>
           <Ionicons name="arrow-forward" size={14} color={Colors.PRIMARY} />
         </TouchableOpacity>
       </View>
 
-      {courses.slice(0, 3).map((course, idx) => (
-        <View key={course.id || idx} style={styles.recentCourseCard}>
-          <View style={styles.recentCourseIcon}>
-            <Ionicons name="book" size={20} color={Colors.PRIMARY} />
+      {lmsStore?.teachers?.map((tch) => (
+        <View key={tch.id} style={styles.teacherSnapCard}>
+          <View style={styles.teacherSnapAvatar}>
+            <Text style={styles.teacherSnapInitial}>{tch.avatar}</Text>
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.recentCourseTitle} numberOfLines={1}>
-              {course.courseTitle}
-            </Text>
-            <Text style={styles.recentCourseCreator} numberOfLines={1}>
-              Creator: {course.userEmail}
-            </Text>
+            <Text style={styles.teacherSnapName}>{tch.name}</Text>
+            <Text style={styles.teacherSnapSubject}>{tch.subject}</Text>
           </View>
-          <View style={styles.recentCourseBadge}>
-            <Text style={styles.recentCourseBadgeText}>
-              {course.topicCount || course.topics?.length || 0} Topics
-            </Text>
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={13} color="#f59e0b" />
+            <Text style={styles.ratingBadgeText}>{tch.rating}</Text>
           </View>
         </View>
       ))}
@@ -382,17 +470,16 @@ export default function AdminDashboard() {
   );
 
   /* =======================================================================
-     TAB 2: STUDENTS DIRECTORY SCREEN
+     TAB 2: STUDENTS DIRECTORY
      ======================================================================= */
   const renderStudentsTab = () => (
     <View style={{ flex: 1 }}>
-      {/* Search Bar */}
-      <View style={styles.tabSearchBox}>
+      <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color={Colors.GRAY} style={{ marginRight: 8 }} />
         <TextInput
           placeholder="Search students by name or email..."
           placeholderTextColor="#9ca3af"
-          style={styles.tabSearchInput}
+          style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -403,436 +490,504 @@ export default function AdminDashboard() {
         )}
       </View>
 
-      {filteredStudents.length === 0 ? (
-        <View style={styles.emptyCenterContainer}>
-          <Ionicons name="people-outline" size={54} color={Colors.GRAY} />
-          <Text style={styles.emptyTitle}>No Students Found</Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery ? "Try a different search query." : "No registered students yet."}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredStudents}
-          keyExtractor={(item) => item.email}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
-          }
-          renderItem={({ item, index }) => {
-            const isExpanded = expandedStudentEmail === item.email;
-            return (
-              <View style={styles.studentFullCard}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    setExpandedStudentEmail(isExpanded ? null : item.email)
-                  }
-                  style={styles.studentFullCardHeader}
-                >
-                  <View style={styles.studentAvatarCircleLarge}>
-                    <Text style={styles.studentAvatarInitialLarge}>
-                      {item.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+      <FlatList
+        data={filteredStudents}
+        keyExtractor={(item) => item.email}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
+        }
+        renderItem={({ item }) => {
+          const isExpanded = expandedStudentEmail === item.email;
+          return (
+            <View style={styles.studentDetailCard}>
+              <TouchableOpacity
+                onPress={() => setExpandedStudentEmail(isExpanded ? null : item.email)}
+                style={styles.studentDetailHeader}
+              >
+                <View style={styles.studentAvatarLarge}>
+                  <Text style={styles.studentAvatarLargeInitial}>
+                    {item.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
 
-                  <View style={{ flex: 1, marginLeft: 14 }}>
-                    <Text style={styles.studentNameTitle}>{item.name}</Text>
-                    <Text style={styles.studentEmailSubtitle}>{item.email}</Text>
-
-                    <View style={styles.studentMetaRow}>
-                      <View style={styles.badgePillSmall}>
-                        <Ionicons name="book-outline" size={12} color={Colors.PRIMARY} />
-                        <Text style={styles.badgePillSmallText}>
-                          {item.totalCourses} {item.totalCourses === 1 ? "Course" : "Courses"}
-                        </Text>
-                      </View>
-                      <View style={[styles.badgePillSmall, { backgroundColor: "#f0fdf4" }]}>
-                        <Ionicons name="checkmark-circle-outline" size={12} color="#16a34a" />
-                        <Text style={[styles.badgePillSmallText, { color: "#16a34a" }]}>
-                          {item.progressPercent}% Completed
-                        </Text>
-                      </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.studentDetailName}>{item.name}</Text>
+                  <Text style={styles.studentDetailEmail}>{item.email}</Text>
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                    <View style={styles.pillSmall}>
+                      <Text style={styles.pillSmallText}>{item.totalCourses} Courses</Text>
                     </View>
-                  </View>
-
-                  <Ionicons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color={Colors.GRAY}
-                  />
-                </TouchableOpacity>
-
-                {/* Expanded Student Courses */}
-                {isExpanded && (
-                  <View style={styles.studentCoursesContainer}>
-                    <Text style={styles.studentCoursesSectionTitle}>
-                      Courses Created by {item.name}:
-                    </Text>
-
-                    {item.courses.length === 0 ? (
-                      <Text style={styles.noCoursesForStudentText}>
-                        This student hasn't created any courses yet.
-                      </Text>
-                    ) : (
-                      item.courses.map((c, cIdx) => {
-                        const totalT = c.topics?.length || c.topicCount || 0;
-                        const compT = Array.isArray(c.completedTopicIds)
-                          ? c.completedTopicIds.length
-                          : 0;
-                        const pct = totalT > 0 ? Math.round((compT / totalT) * 100) : 0;
-
-                        return (
-                          <View key={c.id || cIdx} style={styles.studentSubCourseCard}>
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                              <Text style={styles.studentSubCourseTitle} numberOfLines={1}>
-                                {c.courseTitle}
-                              </Text>
-                              <Text style={styles.studentSubCourseProgress}>
-                                {pct}% Done
-                              </Text>
-                            </View>
-
-                            <View style={styles.subCourseProgressBar}>
-                              <View style={[styles.subCourseProgressFill, { width: `${pct}%` }]} />
-                            </View>
-
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                              <Text style={styles.subCourseTopicsCount}>
-                                {compT} / {totalT} topics completed
-                              </Text>
-                              <Text style={styles.subCourseDate}>
-                                {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Recent"}
-                              </Text>
-                            </View>
-                          </View>
-                        );
-                      })
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          }}
-        />
-      )}
-    </View>
-  );
-
-  /* =======================================================================
-     TAB 3: COURSES MANAGEMENT SCREEN
-     ======================================================================= */
-  const renderCoursesTab = () => (
-    <View style={{ flex: 1 }}>
-      {/* Search */}
-      <View style={styles.tabSearchBox}>
-        <Ionicons name="search" size={18} color={Colors.GRAY} style={{ marginRight: 8 }} />
-        <TextInput
-          placeholder="Search courses or creators..."
-          placeholderTextColor="#9ca3af"
-          style={styles.tabSearchInput}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Ionicons name="close-circle" size={18} color={Colors.GRAY} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {filteredCourses.length === 0 ? (
-        <View style={styles.emptyCenterContainer}>
-          <Ionicons name="book-outline" size={54} color={Colors.GRAY} />
-          <Text style={styles.emptyTitle}>No Courses Found</Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery ? "No courses match your search." : "No courses created in the app yet."}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredCourses}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
-          }
-          renderItem={({ item }) => {
-            const isExpanded = expandedCourseId === item.id;
-            const topics = item.topics || [];
-            const completedCount = Array.isArray(item.completedTopicIds)
-              ? item.completedTopicIds.length
-              : 0;
-
-            return (
-              <View style={styles.courseManageCard}>
-                <View style={styles.courseManageHeader}>
-                  <View style={styles.courseManageIcon}>
-                    <Ionicons name="book" size={22} color={Colors.PRIMARY} />
-                  </View>
-
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={styles.courseManageTitle} numberOfLines={1}>
-                        {item.courseTitle}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteCourse(item)}
-                        style={styles.deleteIconButton}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.courseCreatorRow}>
-                      <Ionicons name="person-circle-outline" size={14} color={Colors.GRAY} />
-                      <Text style={styles.courseCreatorText} numberOfLines={1}>
-                        Created by: {item.userEmail || "guest"}
-                      </Text>
-                    </View>
-
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
-                      <View style={styles.badgePillSmall}>
-                        <Ionicons name="layers-outline" size={12} color={Colors.PRIMARY} />
-                        <Text style={styles.badgePillSmallText}>
-                          {item.topicCount || topics.length} Topics
-                        </Text>
-                      </View>
-                      <Text style={styles.courseCreatedDateText}>
-                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent"}
+                    <View style={[styles.pillSmall, { backgroundColor: "#f0fdf4" }]}>
+                      <Text style={[styles.pillSmallText, { color: "#16a34a" }]}>
+                        {item.progressPercent}% Done
                       </Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Expandable Curriculum */}
-                {isExpanded && (
-                  <View style={styles.courseCurriculumDrawer}>
-                    <Text style={styles.drawerTitle}>Curriculum Breakdown:</Text>
-                    {topics.length > 0 ? (
-                      topics.map((t, idx) => (
-                        <View key={t.id || idx} style={styles.drawerTopicRow}>
-                          <View style={styles.drawerTopicBadge}>
-                            <Text style={styles.drawerTopicBadgeNum}>{idx + 1}</Text>
-                          </View>
-                          <View style={{ flex: 1, marginLeft: 8 }}>
-                            <Text style={styles.drawerTopicTitle}>{t.title}</Text>
-                            {t.description ? (
-                              <Text style={styles.drawerTopicDesc}>{t.description}</Text>
-                            ) : null}
-                          </View>
-                        </View>
-                      ))
-                    ) : (
-                      <Text style={{ color: Colors.GRAY, fontStyle: "italic", fontSize: 12 }}>
-                        No curriculum topics listed.
-                      </Text>
-                    )}
-                  </View>
-                )}
+                <Ionicons
+                  name={isExpanded ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={Colors.GRAY}
+                />
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => setExpandedCourseId(isExpanded ? null : item.id)}
-                  style={styles.courseDrawerToggle}
-                >
-                  <Text style={styles.courseDrawerToggleText}>
-                    {isExpanded ? "Hide Curriculum" : "Inspect Curriculum"}
-                  </Text>
-                  <Ionicons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={15}
-                    color={Colors.PRIMARY}
-                  />
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-        />
-      )}
+              {/* Student's created courses */}
+              {isExpanded && (
+                <View style={styles.studentCourseExpandBox}>
+                  <Text style={styles.expandHeaderTitle}>Courses Created by {item.name}:</Text>
+                  {item.courses.length === 0 ? (
+                    <Text style={styles.noCoursesText}>No courses created yet.</Text>
+                  ) : (
+                    item.courses.map((c, cIdx) => (
+                      <View key={c.id || cIdx} style={styles.subCourseItem}>
+                        <Text style={styles.subCourseTitle}>{c.courseTitle}</Text>
+                        <Text style={styles.subCourseMeta}>
+                          {c.topicCount || c.topics?.length || 0} Topics • Created {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Recently"}
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        }}
+      />
     </View>
   );
 
   /* =======================================================================
-     TAB 4: SETTINGS & ACCOUNT SCREEN
+     TAB 3: TEACHERS DIRECTORY
+     ======================================================================= */
+  const renderTeachersTab = () => (
+    <ScrollView contentContainerStyle={styles.scrollTabContent}>
+      <View style={styles.actionHeaderBar}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionHeading}>Teaching Staff Directory</Text>
+          <Text style={styles.sectionSubheading}>
+            Manage instructors, credentials & portal access
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.addTeacherTopBtn}
+          onPress={() => setShowAddTeacherModal(true)}
+        >
+          <Ionicons name="add" size={16} color={Colors.WHITE} />
+          <Text style={styles.addTeacherTopBtnText}>+ Add Teacher</Text>
+        </TouchableOpacity>
+      </View>
+
+      {lmsStore?.teachers?.length === 0 ? (
+        <View style={styles.emptyTeachersBox}>
+          <Ionicons name="school-outline" size={48} color={Colors.GRAY} />
+          <Text style={styles.emptyNotice}>No teachers registered yet.</Text>
+          <TouchableOpacity
+            style={styles.addTeacherTopBtn}
+            onPress={() => setShowAddTeacherModal(true)}
+          >
+            <Text style={styles.addTeacherTopBtnText}>+ Register First Teacher</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        lmsStore?.teachers?.map((t) => {
+          const isRevealed = revealedPasswords[t.id];
+          const pwd = t.password || "Teacher@123";
+
+          return (
+            <View key={t.id} style={styles.teacherFullCard}>
+              <View style={styles.teacherHeaderRow}>
+                <View style={styles.teacherAvatarCircle}>
+                  <Text style={styles.teacherAvatarInitial}>{t.avatar}</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.teacherFullName}>{t.name}</Text>
+                  <Text style={styles.teacherSubject}>{t.subject}</Text>
+                  <Text style={styles.teacherContactText}>📞 {t.phone}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleDeleteTeacher(t)}
+                  style={styles.deleteTeacherBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Login Credentials Box */}
+              <View style={styles.teacherCredsBox}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="key" size={14} color="#16a34a" />
+                  <Text style={styles.teacherCredsTitle}>Teacher Portal Login Credentials:</Text>
+                </View>
+                <Text style={styles.teacherCredsRow}>
+                  <Text style={{ fontFamily: "outfit-bold", color: "#334155" }}>Email: </Text>
+                  {t.email}
+                </Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                  <Text style={styles.teacherCredsRow}>
+                    <Text style={{ fontFamily: "outfit-bold", color: "#334155" }}>Password: </Text>
+                    {isRevealed ? pwd : "••••••••••••"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => togglePasswordReveal(t.id)}
+                    style={styles.revealPwdBtn}
+                  >
+                    <Ionicons
+                      name={isRevealed ? "eye-off-outline" : "eye-outline"}
+                      size={16}
+                      color={Colors.PRIMARY}
+                    />
+                    <Text style={styles.revealPwdBtnText}>{isRevealed ? "Hide" : "Show"}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.teacherStatsBar}>
+                <View style={styles.teacherStatBox}>
+                  <Text style={styles.teacherStatVal}>{t.totalStudents}</Text>
+                  <Text style={styles.teacherStatLabel}>Enrolled Students</Text>
+                </View>
+                <View style={styles.teacherStatDivider} />
+                <View style={styles.teacherStatBox}>
+                  <Text style={styles.teacherStatVal}>{t.activeClasses}</Text>
+                  <Text style={styles.teacherStatLabel}>Active Classes</Text>
+                </View>
+                <View style={styles.teacherStatDivider} />
+                <View style={styles.teacherStatBox}>
+                  <Text style={[styles.teacherStatVal, { color: "#f59e0b" }]}>⭐ {t.rating}</Text>
+                  <Text style={styles.teacherStatLabel}>Student Rating</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })
+      )}
+    </ScrollView>
+  );
+
+  /* =======================================================================
+     TAB 4: COURSES & LIVE CLASSES MANAGEMENT
+     ======================================================================= */
+  const renderCoursesClassesTab = () => (
+    <View style={{ flex: 1 }}>
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color={Colors.GRAY} style={{ marginRight: 8 }} />
+        <TextInput
+          placeholder="Search all courses and classes..."
+          placeholderTextColor="#9ca3af"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      <FlatList
+        data={filteredCourses}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
+        }
+        renderItem={({ item }) => {
+          const isExpanded = expandedCourseId === item.id;
+          const topics = item.topics || [];
+          return (
+            <View style={styles.courseManageCard}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.courseManageTitle}>{item.courseTitle}</Text>
+                  <Text style={styles.courseManageCreator}>Creator: {item.userEmail || "Student"}</Text>
+                  <Text style={styles.courseManageDate}>
+                    {item.topicCount || topics.length} Topics • {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent"}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handleDeleteCourse(item)}
+                  style={styles.deleteBtn}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Topics dropdown */}
+              {isExpanded && (
+                <View style={styles.curriculumDropdown}>
+                  <Text style={styles.curriculumDropdownHeading}>Curriculum Modules:</Text>
+                  {topics.map((t, idx) => (
+                    <Text key={t.id || idx} style={styles.curriculumTopicItem}>
+                      {idx + 1}. {t.title}
+                    </Text>
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setExpandedCourseId(isExpanded ? null : item.id)}
+                style={styles.inspectBtn}
+              >
+                <Text style={styles.inspectBtnText}>
+                  {isExpanded ? "Hide Curriculum" : "Inspect Curriculum"}
+                </Text>
+                <Ionicons
+                  name={isExpanded ? "chevron-up" : "chevron-down"}
+                  size={15}
+                  color={Colors.PRIMARY}
+                />
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+      />
+    </View>
+  );
+
+  /* =======================================================================
+     TAB 5: SETTINGS & LOGOUT
      ======================================================================= */
   const renderSettingsTab = () => (
     <ScrollView contentContainerStyle={styles.scrollTabContent}>
-      {/* Admin Profile Box */}
-      <View style={styles.settingsProfileCard}>
-        <View style={styles.settingsAvatarCircle}>
+      <View style={styles.settingsHeaderCard}>
+        <View style={styles.settingsShieldCircle}>
           <Ionicons name="shield-checkmark" size={36} color={Colors.WHITE} />
         </View>
-        <Text style={styles.settingsAdminName}>System Administrator</Text>
+        <Text style={styles.settingsAdminName}>Super Administrator</Text>
         <Text style={styles.settingsAdminEmail}>{creds.email}</Text>
-        <View style={styles.activeStatusPill}>
-          <View style={styles.greenDot} />
-          <Text style={styles.activeStatusText}>Admin Session Authenticated</Text>
+        <View style={styles.adminVerifiedPill}>
+          <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+          <Text style={styles.adminVerifiedText}>Active System Session</Text>
         </View>
       </View>
 
-      {/* System Information Card */}
-      <View style={styles.settingsSectionCard}>
-        <Text style={styles.settingsSectionHeading}>System Health & Configuration</Text>
-
-        <View style={styles.settingsInfoRow}>
-          <Text style={styles.settingsInfoLabel}>Admin Email (.env)</Text>
-          <Text style={styles.settingsInfoVal}>{creds.email}</Text>
+      <View style={styles.settingsBox}>
+        <Text style={styles.settingsBoxHeading}>System Configuration (.env)</Text>
+        <View style={styles.settingsRow}>
+          <Text style={styles.settingsLabel}>Admin Email:</Text>
+          <Text style={styles.settingsVal}>{creds.email}</Text>
         </View>
-
-        <View style={styles.settingsInfoRow}>
-          <Text style={styles.settingsInfoLabel}>AI Engine</Text>
-          <Text style={[styles.settingsInfoVal, { color: "#16a34a" }]}>Gemini 3.8 Flash (Active)</Text>
+        <View style={styles.settingsRow}>
+          <Text style={styles.settingsLabel}>AI Engine:</Text>
+          <Text style={[styles.settingsVal, { color: "#16a34a" }]}>Gemini 3.8 Flash</Text>
         </View>
-
-        <View style={styles.settingsInfoRow}>
-          <Text style={styles.settingsInfoLabel}>Database</Text>
-          <Text style={[styles.settingsInfoVal, { color: "#16a34a" }]}>Connected (Cloud + Local)</Text>
-        </View>
-
-        <View style={[styles.settingsInfoRow, { borderBottomWidth: 0 }]}>
-          <Text style={styles.settingsInfoLabel}>App Build</Text>
-          <Text style={styles.settingsInfoVal}>Coaching Guru v1.0.0</Text>
+        <View style={[styles.settingsRow, { borderBottomWidth: 0 }]}>
+          <Text style={styles.settingsLabel}>Data Storage:</Text>
+          <Text style={styles.settingsVal}>AsyncStorage + Firestore Sync</Text>
         </View>
       </View>
 
-      {/* Logout Action */}
-      <View style={[styles.settingsSectionCard, { marginTop: 16 }]}>
-        <Text style={styles.settingsSectionHeading}>Session Controls</Text>
-        <Text style={styles.settingsSectionDesc}>
-          To return to the student application, securely log out from this admin session.
-        </Text>
+      <TouchableOpacity
+        style={styles.broadcastActionBtn}
+        onPress={() => setShowBroadcastModal(true)}
+      >
+        <Ionicons name="megaphone" size={18} color={Colors.WHITE} />
+        <Text style={styles.broadcastActionBtnText}>Broadcast Platform Announcement</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity style={styles.bigLogoutBtn} onPress={handleAdminLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#dc2626" />
-          <Text style={styles.bigLogoutBtnText}>Log Out of Admin Console</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.logoutBtnBig} onPress={handleAdminLogout}>
+        <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+        <Text style={styles.logoutBtnBigText}>Log Out of Admin Console</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
   return (
     <View style={styles.mainContainer}>
       {/* Top Header */}
-      <View style={styles.topHeaderBar}>
+      <View style={styles.topHeader}>
         <View>
           <Text style={styles.topHeaderTitle}>Admin Console</Text>
-          <Text style={styles.topHeaderSubtitle}>Coaching Guru Management</Text>
+          <Text style={styles.topHeaderSubtitle}>Platform Institutional Controller</Text>
         </View>
-
-        <TouchableOpacity style={styles.topLogoutIcon} onPress={handleAdminLogout}>
+        <TouchableOpacity style={styles.logoutTopBtn} onPress={handleAdminLogout}>
           <Ionicons name="log-out-outline" size={20} color="#dc2626" />
         </TouchableOpacity>
       </View>
 
-      {/* Body Content */}
+      {/* Main Tab Screen Body */}
       <View style={{ flex: 1 }}>
         {loading ? (
-          <View style={styles.emptyCenterContainer}>
+          <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={Colors.PRIMARY} />
-            <Text style={{ marginTop: 12, color: Colors.GRAY, fontFamily: "outfit" }}>
-              Loading admin dashboard...
+            <Text style={{ marginTop: 10, color: Colors.GRAY, fontFamily: "outfit" }}>
+              Loading platform data...
             </Text>
           </View>
         ) : (
           <>
             {activeTab === "overview" && renderOverviewTab()}
             {activeTab === "students" && renderStudentsTab()}
-            {activeTab === "courses" && renderCoursesTab()}
+            {activeTab === "teachers" && renderTeachersTab()}
+            {activeTab === "courses_classes" && renderCoursesClassesTab()}
             {activeTab === "settings" && renderSettingsTab()}
           </>
         )}
       </View>
 
-      {/* Modern Admin Bottom Navigation Bar */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity
-          style={styles.tabBarItem}
-          onPress={() => {
-            setActiveTab("overview");
-            setSearchQuery("");
-          }}
-        >
+      {/* Admin Bottom Navigation Bar */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("overview")}>
           <Ionicons
             name={activeTab === "overview" ? "grid" : "grid-outline"}
             size={22}
             color={activeTab === "overview" ? Colors.PRIMARY : "#94a3b8"}
           />
-          <Text
-            style={[
-              styles.tabBarLabel,
-              activeTab === "overview" && styles.tabBarLabelActive,
-            ]}
-          >
+          <Text style={[styles.navLabel, activeTab === "overview" && styles.navLabelActive]}>
             Overview
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabBarItem}
-          onPress={() => {
-            setActiveTab("students");
-            setSearchQuery("");
-          }}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("students")}>
           <Ionicons
             name={activeTab === "students" ? "people" : "people-outline"}
-            size={23}
+            size={22}
             color={activeTab === "students" ? Colors.PRIMARY : "#94a3b8"}
           />
-          <Text
-            style={[
-              styles.tabBarLabel,
-              activeTab === "students" && styles.tabBarLabelActive,
-            ]}
-          >
+          <Text style={[styles.navLabel, activeTab === "students" && styles.navLabelActive]}>
             Students
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabBarItem}
-          onPress={() => {
-            setActiveTab("courses");
-            setSearchQuery("");
-          }}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("teachers")}>
           <Ionicons
-            name={activeTab === "courses" ? "book" : "book-outline"}
+            name={activeTab === "teachers" ? "school" : "school-outline"}
             size={22}
-            color={activeTab === "courses" ? Colors.PRIMARY : "#94a3b8"}
+            color={activeTab === "teachers" ? Colors.PRIMARY : "#94a3b8"}
           />
-          <Text
-            style={[
-              styles.tabBarLabel,
-              activeTab === "courses" && styles.tabBarLabelActive,
-            ]}
-          >
+          <Text style={[styles.navLabel, activeTab === "teachers" && styles.navLabelActive]}>
+            Teachers
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("courses_classes")}>
+          <Ionicons
+            name={activeTab === "courses_classes" ? "book" : "book-outline"}
+            size={22}
+            color={activeTab === "courses_classes" ? Colors.PRIMARY : "#94a3b8"}
+          />
+          <Text style={[styles.navLabel, activeTab === "courses_classes" && styles.navLabelActive]}>
             Courses
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabBarItem}
-          onPress={() => {
-            setActiveTab("settings");
-            setSearchQuery("");
-          }}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("settings")}>
           <Ionicons
             name={activeTab === "settings" ? "settings" : "settings-outline"}
             size={22}
             color={activeTab === "settings" ? Colors.PRIMARY : "#94a3b8"}
           />
-          <Text
-            style={[
-              styles.tabBarLabel,
-              activeTab === "settings" && styles.tabBarLabelActive,
-            ]}
-          >
+          <Text style={[styles.navLabel, activeTab === "settings" && styles.navLabelActive]}>
             Settings
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Add Teacher Modal */}
+      <Modal visible={showAddTeacherModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+              <View>
+                <Text style={styles.modalTitle}>Register New Teacher</Text>
+                <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.GRAY }}>
+                  Assign credentials for Teacher Portal login
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAddTeacherModal(false)}>
+                <Ionicons name="close" size={22} color={Colors.GRAY} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              placeholder="Full Name (e.g. Prof. David Miller)"
+              placeholderTextColor="#9ca3af"
+              style={styles.modalInput}
+              value={teacherName}
+              onChangeText={setTeacherName}
+            />
+            <TextInput
+              placeholder="Subject / Department (e.g. Cloud & DevOps)"
+              placeholderTextColor="#9ca3af"
+              style={styles.modalInput}
+              value={teacherSubject}
+              onChangeText={setTeacherSubject}
+            />
+            <TextInput
+              placeholder="Login Email (e.g. david.miller@coachingguru.com)"
+              placeholderTextColor="#9ca3af"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.modalInput}
+              value={teacherEmail}
+              onChangeText={setTeacherEmail}
+            />
+            <TextInput
+              placeholder="Login Password (e.g. Teacher@123)"
+              placeholderTextColor="#9ca3af"
+              style={styles.modalInput}
+              value={teacherPassword}
+              onChangeText={setTeacherPassword}
+            />
+            <TextInput
+              placeholder="Phone (optional, e.g. +1 415-555-0155)"
+              placeholderTextColor="#9ca3af"
+              keyboardType="phone-pad"
+              style={styles.modalInput}
+              value={teacherPhone}
+              onChangeText={setTeacherPhone}
+            />
+
+            <View style={{ marginTop: 14 }}>
+              <Button
+                text="Create Faculty Account"
+                type="fill"
+                onPress={handleAddTeacher}
+                loading={addingTeacher}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Broadcast Announcement Modal */}
+      <Modal visible={showBroadcastModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+              <Text style={styles.modalTitle}>Broadcast Announcement</Text>
+              <TouchableOpacity onPress={() => setShowBroadcastModal(false)}>
+                <Ionicons name="close" size={22} color={Colors.GRAY} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              placeholder="Announcement Title (e.g. Schedule Change)"
+              placeholderTextColor="#9ca3af"
+              style={styles.modalInput}
+              value={broadcastTitle}
+              onChangeText={setBroadcastTitle}
+            />
+            <TextInput
+              placeholder="Message to all students..."
+              placeholderTextColor="#9ca3af"
+              style={[styles.modalInput, { height: 90 }]}
+              multiline
+              value={broadcastMsg}
+              onChangeText={setBroadcastMsg}
+            />
+
+            <View style={{ marginTop: 14 }}>
+              <Button
+                text="Dispatch to All Students"
+                type="fill"
+                onPress={handleSendBroadcast}
+                loading={broadcasting}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -842,13 +997,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
-  topHeaderBar: {
+  topHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: Platform.OS === "ios" ? 50 : 35,
-    paddingBottom: 14,
+    paddingBottom: 12,
     backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,
     borderBottomColor: "#edf2f7",
@@ -860,35 +1015,38 @@ const styles = StyleSheet.create({
   },
   topHeaderSubtitle: {
     fontFamily: "outfit",
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.GRAY,
   },
-  topLogoutIcon: {
-    width: 40,
-    height: 40,
+  logoutTopBtn: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: "#fef2f2",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#fee2e2",
   },
   scrollTabContent: {
     padding: 20,
     paddingBottom: 100,
   },
-  adminHeroCard: {
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroCard: {
     backgroundColor: Colors.PRIMARY,
     borderRadius: 22,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 16,
     elevation: 3,
     shadowColor: Colors.PRIMARY,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
   },
-  heroPillBadge: {
+  heroPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.25)",
@@ -896,26 +1054,27 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: "flex-start",
-    marginBottom: 10,
-    gap: 5,
+    marginBottom: 8,
+    gap: 4,
   },
   heroPillText: {
     fontFamily: "outfit-bold",
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.WHITE,
   },
   heroTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 24,
+    fontSize: 22,
     color: Colors.WHITE,
   },
   heroSubtitle: {
     fontFamily: "outfit",
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.85)",
     marginTop: 2,
+    lineHeight: 16,
   },
-  heroLogoutBtn: {
+  broadcastIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -923,33 +1082,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  heroStatsRow: {
+  metricGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.25)",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 18,
   },
-  heroStatItem: {
+  metricTile: {
+    width: "31%",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 12,
+    padding: 10,
     alignItems: "center",
   },
-  heroStatVal: {
+  metricVal: {
     fontFamily: "outfit-bold",
-    fontSize: 22,
-    color: Colors.WHITE,
+    fontSize: 18,
+    color: "#1e293b",
   },
-  heroStatLabel: {
+  metricLabel: {
     fontFamily: "outfit",
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 10,
+    color: Colors.GRAY,
     marginTop: 2,
   },
-  heroStatDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  broadcastBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    marginBottom: 20,
+  },
+  broadcastBannerTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 14,
+    color: Colors.PRIMARY,
+  },
+  broadcastBannerSub: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: "#3b82f6",
+    marginTop: 2,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -959,12 +1135,12 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 18,
+    fontSize: 17,
     color: "#1e293b",
   },
   sectionSubheading: {
     fontFamily: "outfit",
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.GRAY,
     marginTop: 1,
   },
@@ -972,12 +1148,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingVertical: 4,
   },
   seeMoreBtnText: {
     fontFamily: "outfit-bold",
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.PRIMARY,
+  },
+  emptyNotice: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.GRAY,
+    fontStyle: "italic",
+    paddingVertical: 10,
   },
   studentRankCard: {
     flexDirection: "row",
@@ -988,11 +1170,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: "#edf2f7",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
   },
   rankBadge: {
     width: 24,
@@ -1007,53 +1184,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#64748b",
   },
-  studentAvatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#e8f2ff",
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#eff6ff",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,
   },
-  studentAvatarInitial: {
+  avatarInitial: {
     fontFamily: "outfit-bold",
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.PRIMARY,
   },
-  studentNameText: {
+  studentName: {
     fontFamily: "outfit-bold",
-    fontSize: 15,
+    fontSize: 14,
     color: "#1e293b",
   },
-  studentEmailText: {
+  studentEmail: {
     fontFamily: "outfit",
     fontSize: 12,
     color: Colors.GRAY,
-    marginTop: 2,
+    marginTop: 1,
   },
-  courseCountPill: {
+  countPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#edf4ff",
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
     gap: 4,
   },
-  courseCountPillText: {
+  countPillText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
     color: Colors.PRIMARY,
   },
-  studentProgressText: {
+  progressPctText: {
     fontFamily: "outfit",
     fontSize: 11,
     color: "#16a34a",
     marginTop: 4,
-    fontWeight: "600",
   },
-  recentCourseCard: {
+  teacherSnapCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.WHITE,
@@ -1063,38 +1239,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#edf2f7",
   },
-  recentCourseIcon: {
+  teacherSnapAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 10,
-    backgroundColor: "#e8f2ff",
+    borderRadius: 19,
+    backgroundColor: "#eff6ff",
     justifyContent: "center",
     alignItems: "center",
   },
-  recentCourseTitle: {
+  teacherSnapInitial: {
+    fontFamily: "outfit-bold",
+    fontSize: 14,
+    color: Colors.PRIMARY,
+  },
+  teacherSnapName: {
     fontFamily: "outfit-bold",
     fontSize: 14,
     color: "#1e293b",
   },
-  recentCourseCreator: {
+  teacherSnapSubject: {
     fontFamily: "outfit",
     fontSize: 12,
     color: Colors.GRAY,
-    marginTop: 2,
+    marginTop: 1,
   },
-  recentCourseBadge: {
-    backgroundColor: "#f1f5f9",
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
+    gap: 4,
   },
-  recentCourseBadgeText: {
-    fontFamily: "outfit",
-    fontSize: 11,
-    color: "#475569",
-    fontWeight: "600",
+  ratingBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: "#b45309",
   },
-  tabSearchBox: {
+  searchBox: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.WHITE,
@@ -1107,134 +1290,221 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  tabSearchInput: {
+  searchInput: {
     flex: 1,
     fontFamily: "outfit",
     fontSize: 14,
     color: "#1e293b",
   },
-  studentFullCard: {
+  studentDetailCard: {
     backgroundColor: Colors.WHITE,
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
   },
-  studentFullCardHeader: {
+  studentDetailHeader: {
     flexDirection: "row",
     alignItems: "center",
   },
-  studentAvatarCircleLarge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#e8f2ff",
+  studentAvatarLarge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#eff6ff",
     justifyContent: "center",
     alignItems: "center",
   },
-  studentAvatarInitialLarge: {
+  studentAvatarLargeInitial: {
     fontFamily: "outfit-bold",
-    fontSize: 22,
+    fontSize: 20,
     color: Colors.PRIMARY,
   },
-  studentNameTitle: {
+  studentDetailName: {
+    fontFamily: "outfit-bold",
+    fontSize: 15,
+    color: "#1e293b",
+  },
+  studentDetailEmail: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    marginTop: 1,
+  },
+  pillSmall: {
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pillSmallText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  studentCourseExpandBox: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  expandHeaderTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 13,
+    color: "#475569",
+    marginBottom: 6,
+  },
+  noCoursesText: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    fontStyle: "italic",
+  },
+  subCourseItem: {
+    backgroundColor: "#f8fafc",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  subCourseTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 13,
+    color: "#1e293b",
+  },
+  subCourseMeta: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.GRAY,
+    marginTop: 2,
+  },
+  teacherFullCard: {
+    backgroundColor: Colors.WHITE,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+  },
+  teacherHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  teacherAvatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#eff6ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  teacherFullName: {
     fontFamily: "outfit-bold",
     fontSize: 16,
     color: "#1e293b",
   },
-  studentEmailSubtitle: {
+  teacherSubject: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.GRAY,
-    marginTop: 1,
+    color: Colors.PRIMARY,
+    marginBottom: 4,
   },
-  studentMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 6,
-  },
-  badgePillSmall: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#edf4ff",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 3,
-  },
-  badgePillSmallText: {
+  teacherContactText: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: Colors.PRIMARY,
-    fontWeight: "600",
-  },
-  studentCoursesContainer: {
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-  },
-  studentCoursesSectionTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: "#475569",
-    marginBottom: 8,
-  },
-  noCoursesForStudentText: {
-    fontFamily: "outfit",
-    fontSize: 13,
     color: Colors.GRAY,
-    fontStyle: "italic",
-    paddingVertical: 4,
   },
-  studentSubCourseCard: {
-    backgroundColor: "#f8fafc",
+  deleteTeacherBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#fef2f2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addTeacherTopBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.PRIMARY,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    gap: 4,
+  },
+  addTeacherTopBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.WHITE,
+  },
+  emptyTeachersBox: {
+    alignItems: "center",
+    padding: 30,
+    backgroundColor: Colors.WHITE,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    gap: 10,
+  },
+  teacherCredsBox: {
+    backgroundColor: "#f0fdf4",
     borderRadius: 12,
     padding: 10,
-    marginBottom: 8,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#bbf7d0",
   },
-  studentSubCourseTitle: {
+  teacherCredsTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: "#166534",
+  },
+  teacherCredsRow: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: "#166534",
+  },
+  revealPwdBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  revealPwdBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  teacherStatsBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#f8fafc",
+    padding: 10,
+    borderRadius: 12,
+  },
+  teacherStatBox: {
+    alignItems: "center",
+  },
+  teacherStatVal: {
     fontFamily: "outfit-bold",
     fontSize: 14,
     color: "#1e293b",
-    flex: 1,
-    marginRight: 8,
   },
-  studentSubCourseProgress: {
-    fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: "#16a34a",
-  },
-  subCourseProgressBar: {
-    height: 5,
-    backgroundColor: "#e2e8f0",
-    borderRadius: 3,
-    marginTop: 6,
-    overflow: "hidden",
-  },
-  subCourseProgressFill: {
-    height: "100%",
-    backgroundColor: Colors.PRIMARY,
-    borderRadius: 3,
-  },
-  subCourseTopicsCount: {
+  teacherStatLabel: {
     fontFamily: "outfit",
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.GRAY,
+    marginTop: 2,
   },
-  subCourseDate: {
-    fontFamily: "outfit",
-    fontSize: 11,
-    color: "#94a3b8",
+  teacherStatDivider: {
+    width: 1,
+    height: 22,
+    backgroundColor: "#e2e8f0",
   },
   courseManageCard: {
     backgroundColor: Colors.WHITE,
@@ -1243,32 +1513,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-  },
-  courseManageHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  courseManageIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#e8f2ff",
-    justifyContent: "center",
-    alignItems: "center",
   },
   courseManageTitle: {
     fontFamily: "outfit-bold",
     fontSize: 16,
     color: "#1e293b",
-    flex: 1,
-    marginRight: 8,
   },
-  deleteIconButton: {
+  courseManageCreator: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    marginTop: 2,
+  },
+  courseManageDate: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  deleteBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
@@ -1276,69 +1539,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  courseCreatorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 3,
-  },
-  courseCreatorText: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: Colors.GRAY,
-  },
-  courseCreatedDateText: {
-    fontFamily: "outfit",
-    fontSize: 11,
-    color: "#94a3b8",
-  },
-  courseCurriculumDrawer: {
-    marginTop: 14,
-    paddingTop: 12,
+  curriculumDropdown: {
+    marginTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
   },
-  drawerTitle: {
+  curriculumDropdownHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 13,
+    fontSize: 12,
     color: "#475569",
-    marginBottom: 8,
-  },
-  drawerTopicRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#f8fafc",
-    padding: 8,
-    borderRadius: 8,
     marginBottom: 6,
   },
-  drawerTopicBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.PRIMARY,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 1,
-  },
-  drawerTopicBadgeNum: {
-    color: Colors.WHITE,
-    fontSize: 10,
-    fontFamily: "outfit-bold",
-  },
-  drawerTopicTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: "#1e293b",
-  },
-  drawerTopicDesc: {
+  curriculumTopicItem: {
     fontFamily: "outfit",
-    fontSize: 11,
-    color: "#64748b",
-    marginTop: 2,
-    lineHeight: 15,
+    fontSize: 12,
+    color: "#334155",
+    marginBottom: 4,
   },
-  courseDrawerToggle: {
+  inspectBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1348,34 +1567,29 @@ const styles = StyleSheet.create({
     borderTopColor: "#f8fafc",
     gap: 4,
   },
-  courseDrawerToggleText: {
+  inspectBtnText: {
     fontFamily: "outfit",
     fontSize: 12,
     color: Colors.PRIMARY,
     fontWeight: "600",
   },
-  settingsProfileCard: {
+  settingsHeaderCard: {
     backgroundColor: Colors.WHITE,
     borderRadius: 22,
     padding: 24,
     alignItems: "center",
-    marginBottom: 18,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
   },
-  settingsAvatarCircle: {
+  settingsShieldCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
     backgroundColor: Colors.PRIMARY,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   settingsAdminName: {
     fontFamily: "outfit-bold",
@@ -1388,114 +1602,84 @@ const styles = StyleSheet.create({
     color: Colors.GRAY,
     marginTop: 2,
   },
-  activeStatusPill: {
+  adminVerifiedPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f0fdf4",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginTop: 10,
-    gap: 6,
+    marginTop: 8,
+    gap: 4,
   },
-  greenDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#16a34a",
-  },
-  activeStatusText: {
+  adminVerifiedText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
     color: "#16a34a",
   },
-  settingsSectionCard: {
+  settingsBox: {
     backgroundColor: Colors.WHITE,
     borderRadius: 18,
-    padding: 18,
+    padding: 16,
     borderWidth: 1,
     borderColor: "#edf2f7",
+    marginBottom: 16,
   },
-  settingsSectionHeading: {
+  settingsBoxHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 15,
+    fontSize: 14,
     color: "#1e293b",
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  settingsSectionDesc: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: Colors.GRAY,
-    marginBottom: 14,
-    lineHeight: 18,
-  },
-  settingsInfoRow: {
+  settingsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
-  settingsInfoLabel: {
+  settingsLabel: {
     fontFamily: "outfit",
     fontSize: 13,
     color: "#64748b",
   },
-  settingsInfoVal: {
+  settingsVal: {
     fontFamily: "outfit-bold",
     fontSize: 13,
     color: "#1e293b",
   },
-  bigLogoutBtn: {
+  broadcastActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.PRIMARY,
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+    marginBottom: 12,
+  },
+  broadcastActionBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 14,
+    color: Colors.WHITE,
+  },
+  logoutBtnBig: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fef2f2",
-    borderRadius: 14,
     paddingVertical: 14,
+    borderRadius: 14,
     gap: 8,
     borderWidth: 1,
     borderColor: "#fee2e2",
   },
-  bigLogoutBtnText: {
+  logoutBtnBigText: {
     fontFamily: "outfit-bold",
-    fontSize: 15,
+    fontSize: 14,
     color: "#dc2626",
   },
-  emptyCardBox: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 14,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#edf2f7",
-  },
-  emptyCardText: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: Colors.GRAY,
-    marginTop: 6,
-  },
-  emptyCenterContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 80,
-  },
-  emptyTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#334155",
-    marginTop: 12,
-  },
-  emptySubtitle: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: Colors.GRAY,
-    marginTop: 4,
-  },
-  bottomTabBar: {
+  bottomNav: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
@@ -1510,19 +1694,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
   },
-  tabBarItem: {
+  navItem: {
     alignItems: "center",
     justifyContent: "center",
     flex: 1,
   },
-  tabBarLabel: {
+  navLabel: {
     fontFamily: "outfit",
     fontSize: 11,
     color: "#94a3b8",
-    marginTop: 3,
+    marginTop: 2,
   },
-  tabBarLabelActive: {
+  navLabelActive: {
     fontFamily: "outfit-bold",
     color: Colors.PRIMARY,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: Colors.WHITE,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: "#1e293b",
+  },
+  modalInput: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    padding: 12,
+    fontFamily: "outfit",
+    fontSize: 14,
+    color: "#1e293b",
+    marginBottom: 10,
   },
 });

@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { useFonts} from 'expo-font';
 import { UserDetailContext } from "../context/UserDetailContext";
+import { RoleProvider } from "../context/RoleContext";
 import { useState } from "react";
 
 export default function RootLayout() {
@@ -12,11 +13,13 @@ export default function RootLayout() {
 
   const [userDetail,setUserDetail]=useState();
   return (
-    <UserDetailContext.Provider value={{userDetail,setUserDetail}}>
-      <Stack screenOptions={{
-        headerShown:false
-      }}>
-      </Stack>
-    </UserDetailContext.Provider>
+    <RoleProvider>
+      <UserDetailContext.Provider value={{userDetail,setUserDetail}}>
+        <Stack screenOptions={{
+          headerShown:false
+        }}>
+        </Stack>
+      </UserDetailContext.Provider>
+    </RoleProvider>
   );
 }

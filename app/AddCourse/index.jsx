@@ -91,12 +91,49 @@ export default function AddCourse() {
 
   return (
     <ScrollView style={{ backgroundColor: Colors.WHITE, flex: 1 }} contentContainerStyle={{ padding: 25, paddingBottom: 60 }}>
-      <Text style={{ fontFamily: "outfit-bold", fontSize: 25, marginTop: 20 }}>
-        Create New Course
+      {/* Back Button */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 4 }}
+      >
+        <Ionicons name="arrow-back" size={20} color={Colors.PRIMARY} />
+        <Text style={{ fontFamily: "outfit-bold", color: Colors.PRIMARY, fontSize: 14 }}>Back</Text>
+      </TouchableOpacity>
+
+      <Text style={{ fontFamily: "outfit-bold", fontSize: 25, marginTop: 16 }}>
+        Quick AI Course
       </Text>
-      <Text style={{ fontFamily: "outfit", fontSize: 20, marginTop: 5 }}>
+      <Text style={{ fontFamily: "outfit", fontSize: 18, marginTop: 4 }}>
         What you want to learn today?
       </Text>
+
+      {/* Needs-Based Course Generator Alternative Banner */}
+      <TouchableOpacity
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: "#eff6ff",
+          padding: 14,
+          borderRadius: 14,
+          marginVertical: 14,
+          borderWidth: 1,
+          borderColor: "#bfdbfe",
+        }}
+        onPress={() => router.push("/courses/personalized")}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="sparkles" size={22} color={Colors.PRIMARY} style={{ marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: "outfit-bold", fontSize: 13, color: Colors.PRIMARY }}>
+            Want a tailored curriculum?
+          </Text>
+          <Text style={{ fontFamily: "outfit", fontSize: 11, color: "#3b82f6", marginTop: 2 }}>
+            Generate Course Based on Your Needs (Goal, Skill, Daily Time & Date)
+          </Text>
+        </View>
+        <Ionicons name="arrow-forward" size={16} color={Colors.PRIMARY} />
+      </TouchableOpacity>
+
       <Text style={{ fontFamily: "outfit", fontSize: 14, color: Colors.GRAY, marginTop: 5 }}>
         What course would you like to create? (e.g. Learn Python, Learn React)
       </Text>

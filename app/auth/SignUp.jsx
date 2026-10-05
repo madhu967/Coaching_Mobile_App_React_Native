@@ -1,31 +1,39 @@
-import React, { use } from "react";
-import { View, Text,Image, TextInput, TouchableOpacity } from "react-native";
+import React, { useContext, useState } from "react";
+import { View, Text,Image, TextInput, TouchableOpacity, ToastAndroid } from "react-native";
 import Colors from "../../constant/Colors";
 import { StyleSheet,Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../config/firebaseConfig";
-import { useState } from "react";
 import { setDoc, doc } from "firebase/firestore";
-import { UserDetailContext } from "./../../context/UserDetailContext"
+import { UserDetailContext } from "./../../context/UserDetailContext";
 
 const SignUp = () => {
     const router=useRouter();
     const [fullName,setFullName]=useState("");
     const [email,setEmail]=useState("");
     const [password,setPassword]=useState("");  
-    const {userDetail,setUserDetail}=use(UserDetailContext);
+    const {userDetail,setUserDetail}=useContext(UserDetailContext);
+    const [loading,setLoading]=useState(false);
 
     const CreateNewAccount= ()=>{
+        if (!email.trim() || !password.trim()) {
+            ToastAndroid.show("Please enter email and password", ToastAndroid.SHORT);
+            return;
+        }
+        setLoading(true);
         createUserWithEmailAndPassword(auth,email,password).then(async (userCredential)=>{
             const user=userCredential.user;
-            console .log(user);
+            console.log(user);
             await SaveUser(user);
-            //save user to database
+            setLoading(false);
+            router.replace('/(tabs)/Home');
         }).catch((error)=>{
             const errorCode=error.code;
             const errorMessage=error.message;
             console.log(errorCode,errorMessage);
+            setLoading(false);
+            ToastAndroid.show(errorMessage || "Error creating account", ToastAndroid.SHORT);
         })
     }
 
@@ -35,20 +43,16 @@ const SignUp = () => {
             email:email,
             member:false,
             uid:user?.uid
-        }).then(()=>{
-            console.log("User saved to database");
         }).catch((error)=>{
             console.log("Error saving user to database",error);
-        })
+        });
 
         setUserDetail({
             name:fullName,
             email:email,
             member:false,
             uid:user?.uid   
-        })
-
-        
+        });
     }
   return (
      <View style={{ display: "flex",  alignItems: "center", padding:25, paddingTop: 100,flex: 1,backgroundColor:Colors.WHITE

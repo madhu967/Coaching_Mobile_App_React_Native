@@ -26,7 +26,7 @@ const Signin = () => {
             await getUserDetail();
             ToastAndroid.show("Sign in successful!", ToastAndroid.SHORT); 
             setLoading(false);
-            router.replace('/{tabs}/Home');
+            router.replace('/(tabs)/Home');
             // router.push('/home');
         }).catch((error)=>{         
             const errorCode=error.code;
@@ -69,26 +69,47 @@ const Signin = () => {
          </Text>
          </View>
 
-         <TouchableOpacity
-           onPress={() => router.push('/admin')}
-           style={{
-             marginTop: 25,
-             padding: 12,
-             borderRadius: 12,
-             backgroundColor: "#f1f5f9",
-             alignItems: "center",
-             flexDirection: "row",
-             justifyContent: "center",
-             gap: 8,
-             borderWidth: 1,
-             borderColor: "#cbd5e1",
-           }}
-         >
-           <Ionicons name="shield-checkmark" size={18} color="#0284c7" />
-           <Text style={{ color: "#0284c7", fontFamily: "outfit-bold", fontSize: 14 }}>
-             Admin Portal Login
-           </Text>
-         </TouchableOpacity>
+         <View style={{ width: "100%", marginTop: 24, gap: 10 }}>
+           <TouchableOpacity
+             onPress={() => router.push('/teacher')}
+             style={{
+               padding: 12,
+               borderRadius: 12,
+               backgroundColor: "#f0fdf4",
+               alignItems: "center",
+               flexDirection: "row",
+               justifyContent: "center",
+               gap: 8,
+               borderWidth: 1,
+               borderColor: "#bbf7d0",
+             }}
+           >
+             <Ionicons name="school" size={18} color="#16a34a" />
+             <Text style={{ color: "#16a34a", fontFamily: "outfit-bold", fontSize: 14 }}>
+               Teacher Portal Login
+             </Text>
+           </TouchableOpacity>
+
+           <TouchableOpacity
+             onPress={() => router.push('/admin')}
+             style={{
+               padding: 12,
+               borderRadius: 12,
+               backgroundColor: "#eff6ff",
+               alignItems: "center",
+               flexDirection: "row",
+               justifyContent: "center",
+               gap: 8,
+               borderWidth: 1,
+               borderColor: "#bfdbfe",
+             }}
+           >
+             <Ionicons name="shield-checkmark" size={18} color="#0284c7" />
+             <Text style={{ color: "#0284c7", fontFamily: "outfit-bold", fontSize: 14 }}>
+               Admin Portal Login
+             </Text>
+           </TouchableOpacity>
+         </View>
             
      </View>
   )

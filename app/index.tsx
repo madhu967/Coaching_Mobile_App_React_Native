@@ -16,9 +16,23 @@ export default function Index() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && user.email) {
-        console.log(user);
-        const result = await getDoc(doc(db, "users", user.email));
-        setUserDetail(result.data());
+        console.log("Logged in user:", user.email);
+        try {
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 2000)
+          );
+          const result = await Promise.race([
+            getDoc(doc(db, "users", user.email)),
+            timeoutPromise,
+          ]);
+          if (result && result.exists()) {
+            setUserDetail(result.data());
+          } else {
+            setUserDetail({ email: user.email, name: user.displayName || user.email.split("@")[0] });
+          }
+        } catch (e) {
+          setUserDetail({ email: user.email, name: user.displayName || user.email.split("@")[0] });
+        }
         router.replace('/(tabs)/Home');
       }
     });

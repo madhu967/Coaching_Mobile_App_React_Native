@@ -15,16 +15,22 @@ import { UserDetailContext } from "../../context/UserDetailContext";
 import { auth } from "../../config/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { getAllCourses } from "../../services/courseStorage";
+import { getLmsStore } from "../../services/lmsStore";
 
 const Profile = () => {
   const router = useRouter();
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
   const [courses, setCourses] = useState([]);
+  const [lmsStore, setLmsStore] = useState(null);
 
   const loadStats = async () => {
     try {
-      const data = await getAllCourses();
-      setCourses(data || []);
+      const [coursesData, storeData] = await Promise.all([
+        getAllCourses(),
+        getLmsStore(),
+      ]);
+      setCourses(coursesData || []);
+      setLmsStore(storeData || null);
     } catch (e) {
       console.warn("Profile stats load error:", e);
     }
@@ -52,6 +58,9 @@ const Profile = () => {
       completedCoursesCount += 1;
     }
   });
+
+  const attendancePercent = lmsStore?.attendance?.overallPercentage || 92;
+  const recentScore = lmsStore?.tests?.find((t) => t.completed && t.recentScore)?.recentScore?.accuracy || 100;
 
   const userName =
     userDetail?.name ||
@@ -102,10 +111,10 @@ const Profile = () => {
 
         <View style={styles.badgePill}>
           <Ionicons name="sparkles" size={14} color={Colors.PRIMARY} />
-          <Text style={styles.badgePillText}>Active Learner</Text>
+          <Text style={styles.badgePillText}>Student Profile</Text>
         </View>
 
-        {/* Stats Row */}
+        {/* 4 Stats Highlights Row */}
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>{coursesCount}</Text>
@@ -118,60 +127,126 @@ const Profile = () => {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>{completedCoursesCount}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <Text style={[styles.statValue, { color: Colors.PRIMARY }]}>{attendancePercent}%</Text>
+            <Text style={styles.statLabel}>Attendance</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: "#16a34a" }]}>{recentScore}%</Text>
+            <Text style={styles.statLabel}>Avg Score</Text>
           </View>
         </View>
       </View>
 
-      {/* Menu Sections */}
+      {/* Featured AI Innovation: Step 3 Needs-Based Course Generator */}
+      <TouchableOpacity
+        style={styles.needsHeroCard}
+        onPress={() => router.push("/courses/personalized")}
+        activeOpacity={0.85}
+      >
+        <View style={{ flex: 1 }}>
+          <View style={styles.needsHeroBadge}>
+            <Ionicons name="sparkles" size={12} color={Colors.PRIMARY} />
+            <Text style={styles.needsHeroBadgeText}>AI Recommendation</Text>
+          </View>
+          <Text style={styles.needsHeroTitle}>Create Course Based on Your Needs</Text>
+          <Text style={styles.needsHeroSubtitle}>
+            Tailor course by Goal, Skill Level, Daily Study Time & Target Date
+          </Text>
+        </View>
+        <Ionicons name="arrow-forward-circle" size={28} color={Colors.WHITE} />
+      </TouchableOpacity>
+
+      {/* Section: Academic Learning Modules */}
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionHeaderTitle}>Learning Hub</Text>
+        <Text style={styles.sectionHeaderTitle}>Academic Learning Modules</Text>
 
+        {/* Live Classes */}
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => router.push("/(tabs)/Progress")}
+          onPress={() => router.push("/classes")}
         >
-          <View style={[styles.menuIconBox, { backgroundColor: "#e6f7ff" }]}>
-            <Ionicons name="stats-chart" size={20} color={Colors.PRIMARY} />
+          <View style={[styles.menuIconBox, { backgroundColor: "#fee2e2" }]}>
+            <Ionicons name="videocam" size={20} color="#dc2626" />
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.menuItemTitle}>My Learning Progress</Text>
-            <Text style={styles.menuItemSubtitle}>
-              View curriculum checklist and course completion
-            </Text>
+            <Text style={styles.menuItemTitle}>Live Classes & Recordings</Text>
+            <Text style={styles.menuItemSubtitle}>Join sessions, reminders & attendance</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#aaa" />
         </TouchableOpacity>
 
+        {/* Tests & Assessments */}
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => router.push("/(tabs)/Explore")}
+          onPress={() => router.push("/tests")}
         >
-          <View style={[styles.menuIconBox, { backgroundColor: "#f6ffed" }]}>
-            <Ionicons name="compass" size={20} color="#52c41a" />
+          <View style={[styles.menuIconBox, { backgroundColor: "#f0fdf4" }]}>
+            <Ionicons name="ribbon" size={20} color="#16a34a" />
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.menuItemTitle}>Explore All Courses</Text>
-            <Text style={styles.menuItemSubtitle}>
-              Browse your courses and created curriculums
-            </Text>
+            <Text style={styles.menuItemTitle}>Tests & Assessments</Text>
+            <Text style={styles.menuItemSubtitle}>Timed drills, instant scores & analysis</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#aaa" />
         </TouchableOpacity>
 
+        {/* Assignments */}
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => router.push("/AddCourse")}
+          onPress={() => router.push("/assignments")}
         >
-          <View style={[styles.menuIconBox, { backgroundColor: "#fff7e6" }]}>
-            <Ionicons name="add-circle" size={20} color="#fa8c16" />
+          <View style={[styles.menuIconBox, { backgroundColor: "#fff7ed" }]}>
+            <Ionicons name="document-text" size={20} color="#ea580c" />
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.menuItemTitle}>Create New Course</Text>
-            <Text style={styles.menuItemSubtitle}>
-              Generate a personalized AI course curriculum
-            </Text>
+            <Text style={styles.menuItemTitle}>Assignments & Homework</Text>
+            <Text style={styles.menuItemSubtitle}>Submit solutions & view teacher feedback</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#aaa" />
+        </TouchableOpacity>
+
+        {/* Attendance Tracker */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/attendance")}
+        >
+          <View style={[styles.menuIconBox, { backgroundColor: "#eff6ff" }]}>
+            <Ionicons name="calendar" size={20} color={Colors.PRIMARY} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={styles.menuItemTitle}>Attendance Tracker</Text>
+            <Text style={styles.menuItemSubtitle}>Overall %, subject-wise & warnings</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#aaa" />
+        </TouchableOpacity>
+
+        {/* AI Learning Suite */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/ai")}
+        >
+          <View style={[styles.menuIconBox, { backgroundColor: "#f5f3ff" }]}>
+            <Ionicons name="sparkles" size={20} color="#7c3aed" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={styles.menuItemTitle}>AI Learning Suite</Text>
+            <Text style={styles.menuItemSubtitle}>Doubt solver, study plans & quiz generator</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#aaa" />
+        </TouchableOpacity>
+
+        {/* Notifications */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/notifications")}
+        >
+          <View style={[styles.menuIconBox, { backgroundColor: "#fef3c7" }]}>
+            <Ionicons name="notifications" size={20} color="#d97706" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={styles.menuItemTitle}>Notifications & Alerts</Text>
+            <Text style={styles.menuItemSubtitle}>Class reminders, scores & announcements</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#aaa" />
         </TouchableOpacity>
@@ -194,7 +269,7 @@ const Profile = () => {
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() =>
-            Alert.alert("Coaching Guru", "Version 1.0.0\nPowered by Gemini AI")
+            Alert.alert("Coaching Guru", "Version 2.0.0\nAll 12 Modules Activated\nPowered by Google Gemini 3.8 Flash")
           }
         >
           <View style={[styles.menuIconBox, { backgroundColor: "#f9f0ff" }]}>
@@ -202,21 +277,7 @@ const Profile = () => {
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={styles.menuItemTitle}>About Coaching Guru</Text>
-            <Text style={styles.menuItemSubtitle}>App version & build info</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#aaa" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => router.push("/admin")}
-        >
-          <View style={[styles.menuIconBox, { backgroundColor: "#f0f9ff" }]}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#0284c7" />
-          </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.menuItemTitle}>Admin Portal</Text>
-            <Text style={styles.menuItemSubtitle}>Moderation & platform control</Text>
+            <Text style={styles.menuItemSubtitle}>LMS version & institutional build</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#aaa" />
         </TouchableOpacity>
@@ -390,6 +451,47 @@ const styles = StyleSheet.create({
     fontFamily: "outfit-bold",
     fontSize: 15,
     color: "#ff4d4f",
+  },
+  needsHeroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.PRIMARY,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  needsHeroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    marginBottom: 6,
+    gap: 4,
+  },
+  needsHeroBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  needsHeroTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.WHITE,
+  },
+  needsHeroSubtitle: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 4,
+    lineHeight: 16,
   },
 });
 

@@ -7,13 +7,13 @@ import Feather from '@expo/vector-icons/Feather';
 const Header = () => {
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
   return (
-    <View style={{diaplay:'flex',flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+    <View style={{display:'flex',flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
       <View>
         <Text style={{ fontSize: 24, fontWeight: "bold" ,marginTop: 20,fontFamily: "outfit-bold"}}>
         Hello, {userDetail?.name || "Guest"}!
       </Text>
       <Text style={{ fontSize: 16,fontFamily: "outfit", color: "#666" }}>
-        Let's get started!
+        {"Let's get started!"}
       </Text>
       </View>
       <View>

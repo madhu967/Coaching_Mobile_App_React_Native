@@ -3,6 +3,7 @@ import { View, Text,Image, TextInput, TouchableOpacity, ToastAndroid  } from 're
 import Colors from "../../constant/Colors";
 import { StyleSheet,Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from "../../config/firebaseConfig";
 import { doc, getDoc } from 'firebase/firestore';
@@ -61,12 +62,33 @@ const Signin = () => {
            
         </TouchableOpacity >
          <View style={{ display: "flex", flexDirection: "row", marginTop: 20,gap:5 }}>
-            <Text>Don't have an account?
+            <Text>{"Don't have an account?"}
             <Pressable onPress={()=>router.push('/auth/SignUp')}>
                 <Text style={{ color: Colors.PRIMARY, fontSize: 16, fontFamily: "outfit" }}> Sign Up Here</Text>
             </Pressable>
          </Text>
          </View>
+
+         <TouchableOpacity
+           onPress={() => router.push('/admin')}
+           style={{
+             marginTop: 25,
+             padding: 12,
+             borderRadius: 12,
+             backgroundColor: "#f1f5f9",
+             alignItems: "center",
+             flexDirection: "row",
+             justifyContent: "center",
+             gap: 8,
+             borderWidth: 1,
+             borderColor: "#cbd5e1",
+           }}
+         >
+           <Ionicons name="shield-checkmark" size={18} color="#0284c7" />
+           <Text style={{ color: "#0284c7", fontFamily: "outfit-bold", fontSize: 14 }}>
+             Admin Portal Login
+           </Text>
+         </TouchableOpacity>
             
      </View>
   )

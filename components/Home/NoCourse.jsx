@@ -13,10 +13,10 @@ export default function NoCourse() {
         width:200
       }}/>
       <Text style={{ fontSize: 20, fontWeight: "outfit-bold" }}>
-        You Don't Have Any Courses Enrolled
+        {"You Don't Have Any Courses Enrolled"}
       </Text>
       <Button text={'+ Create New Course'} onPress={()=>router.push('/AddCourse')}></Button>
-      <Button text={'Explore Existing Courses'} type='outline' onPress={()=>router.push('/courses')}></Button>
+      <Button text={'Explore Existing Courses'} type='outline' onPress={()=>router.push('/(tabs)/Explore')}></Button>
     </View>
   )
 }

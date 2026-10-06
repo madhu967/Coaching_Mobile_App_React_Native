@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
   Platform,
+  StatusBar,
   ScrollView,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -102,133 +103,181 @@ export default function PerformanceScreen() {
   });
 
   const courseCompletionCalculated =
-    totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : perf.courseCompletionPercent;
+    totalTopics > 0
+      ? Math.round((completedTopics / totalTopics) * 100)
+      : perf.courseCompletionPercent;
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
+      {/* Top Header with Safe Top Padding to ensure title is fully visible */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Performance & Analytics</Text>
-          <Text style={styles.headerSubtitle}>Complete overview of your learning journey</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Learning Analytics 📊</Text>
+          <Text style={styles.headerSubtitle}>
+            Curriculum mastery & overall academic standing
+          </Text>
         </View>
+
         <TouchableOpacity
-          style={styles.streakBadge}
+          style={styles.aiHelpBtn}
           onPress={() => router.push("/ai")}
+          activeOpacity={0.85}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="flame" size={18} color="#ea580c" />
-          <Text style={styles.streakBadgeText}>{perf.learningStreakDays}d Streak</Text>
+          <Ionicons name="sparkles" size={14} color={Colors.WHITE} />
+          <Text style={styles.aiHelpBtnText}>AI Tutor</Text>
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.PRIMARY} />
-          <Text style={{ marginTop: 12, color: Colors.GRAY, fontFamily: "outfit" }}>
-            Analyzing performance...
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
-          }
-        >
-          {/* STEP 9: Overall Progress Hero Banner */}
-          <View style={styles.overallHeroBanner}>
-            <Text style={styles.heroBannerTitle}>Overall Learning Progress</Text>
-            <Text style={styles.heroBannerSubtitle}>
-              Continuous progress tracked across coursework, tests, assignments & attendance.
-            </Text>
-
-            {/* 4 Pillars of Performance */}
-            <View style={styles.pillarsGrid}>
-              {/* 1. Course Completion */}
-              <View style={styles.pillarBox}>
-                <Ionicons name="book-outline" size={18} color={Colors.PRIMARY} />
-                <Text style={styles.pillarVal}>{courseCompletionCalculated}%</Text>
-                <Text style={styles.pillarLabel}>Course Completion</Text>
-              </View>
-
-              {/* 2. Test Performance */}
-              <View style={styles.pillarBox}>
-                <Ionicons name="ribbon-outline" size={18} color="#16a34a" />
-                <Text style={[styles.pillarVal, { color: "#16a34a" }]}>{perf.testAverageScore}%</Text>
-                <Text style={styles.pillarLabel}>Test Performance</Text>
-              </View>
-
-              {/* 3. Attendance */}
-              <View style={styles.pillarBox}>
-                <Ionicons name="calendar-outline" size={18} color="#0284c7" />
-                <Text style={[styles.pillarVal, { color: "#0284c7" }]}>{perf.attendancePercent}%</Text>
-                <Text style={styles.pillarLabel}>Attendance</Text>
-              </View>
-
-              {/* 4. Assignment Completion */}
-              <View style={styles.pillarBox}>
-                <Ionicons name="document-text-outline" size={18} color="#ea580c" />
-                <Text style={[styles.pillarVal, { color: "#ea580c" }]}>{perf.assignmentCompletionPercent}%</Text>
-                <Text style={styles.pillarLabel}>Assignments</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* STEP 9: Strong & Weak Subjects */}
-          <View style={styles.subjectsSectionCard}>
-            <Text style={styles.subjectCardHeading}>Subject Proficiency Analysis</Text>
-
-            {/* Strong Subjects */}
-            <View style={styles.subjectBox}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-                <Text style={styles.strongLabel}>Strong Subjects (Mastery):</Text>
-              </View>
-              {perf.strongSubjects?.map((s, idx) => (
-                <View key={idx} style={styles.subjectPillGreen}>
-                  <Text style={styles.subjectPillGreenText}>⭐ {s}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Weak Subjects */}
-            <View style={[styles.subjectBox, { marginTop: 12 }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                <Ionicons name="alert-circle" size={16} color="#ea580c" />
-                <Text style={styles.weakLabel}>Areas for Improvement:</Text>
-              </View>
-              {perf.weakSubjects?.map((w, idx) => (
-                <View key={idx} style={styles.subjectPillOrange}>
-                  <Text style={styles.subjectPillOrangeText}>⚠️ {w}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={styles.aiSolveWeakBtn}
-              onPress={() => router.push("/ai")}
-            >
-              <Ionicons name="sparkles" size={16} color={Colors.PRIMARY} />
-              <Text style={styles.aiSolveWeakBtnText}>
-                Use AI Doubt Solver to Reinforce Weak Topics
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.PRIMARY]}
+          />
+        }
+      >
+        {/* ===============================================================
+            HERO METRIC BANNER WITH BACKGROUND IMAGE (Non-clipping)
+            =============================================================== */}
+        <View style={styles.heroBanner}>
+          <Image
+            source={{
+              uri: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=900&auto=format&fit=crop&q=80",
+            }}
+            style={styles.heroBannerImage}
+          />
+          <View style={styles.heroBannerOverlay} />
+          <View style={styles.heroBannerContent}>
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakBadgeText}>
+                🔥 {perf.learningStreakDays} Days Consistent
               </Text>
-            </TouchableOpacity>
+            </View>
+            <Text style={styles.heroBigPercentage}>
+              {courseCompletionCalculated}%
+            </Text>
+            <Text style={styles.heroSubHeading}>Total Syllabus Mastered</Text>
+            <Text style={styles.heroQuote}>
+              "You are ahead of 84% of learners this semester!"
+            </Text>
+          </View>
+        </View>
+
+        {/* ===============================================================
+            4-PILLAR KPI METRICS GRID
+            =============================================================== */}
+        <View style={styles.pillarGrid}>
+          {/* 1. Course Completion */}
+          <View style={styles.pillarCard}>
+            <View style={[styles.pillarIcon, { backgroundColor: Colors.PRIMARY_LIGHT }]}>
+              <Ionicons name="book" size={18} color={Colors.PRIMARY} />
+            </View>
+            <Text style={styles.pillarValue}>{courseCompletionCalculated}%</Text>
+            <Text style={styles.pillarLabel}>Course Mastery</Text>
           </View>
 
-          {/* Enrolled Courses & Topic Progress */}
-          <Text style={[styles.sectionHeading, { marginTop: 24 }]}>
-            Course Curriculum Progress ({courses.length})
+          {/* 2. Test Performance */}
+          <View style={styles.pillarCard}>
+            <View style={[styles.pillarIcon, { backgroundColor: "#f0fdf4" }]}>
+              <Ionicons name="ribbon" size={18} color="#16a34a" />
+            </View>
+            <Text style={[styles.pillarValue, { color: "#16a34a" }]}>
+              {perf.testAverageScore}%
+            </Text>
+            <Text style={styles.pillarLabel}>Test Accuracy</Text>
+          </View>
+
+          {/* 3. Live Attendance */}
+          <View style={styles.pillarCard}>
+            <View style={[styles.pillarIcon, { backgroundColor: "#f0f9ff" }]}>
+              <Ionicons name="calendar" size={18} color="#0284c7" />
+            </View>
+            <Text style={[styles.pillarValue, { color: "#0284c7" }]}>
+              {perf.attendancePercent}%
+            </Text>
+            <Text style={styles.pillarLabel}>Attendance</Text>
+          </View>
+
+          {/* 4. Assignments */}
+          <View style={styles.pillarCard}>
+            <View style={[styles.pillarIcon, { backgroundColor: "#fff7ed" }]}>
+              <Ionicons name="document-text" size={18} color="#ea580c" />
+            </View>
+            <Text style={[styles.pillarValue, { color: "#ea580c" }]}>
+              {perf.assignmentCompletionPercent}%
+            </Text>
+            <Text style={styles.pillarLabel}>Assignments</Text>
+          </View>
+        </View>
+
+        {/* ===============================================================
+            SUBJECT PROFICIENCY (Strong & Weak Topics)
+            =============================================================== */}
+        <View style={styles.proficiencyCard}>
+          <Text style={styles.cardSectionTitle}>Subject Proficiency Analysis</Text>
+
+          {/* Strong Subjects */}
+          <View style={styles.subjectGroup}>
+            <View style={styles.groupHeader}>
+              <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+              <Text style={styles.strongHeading}>Strong Mastery Subjects:</Text>
+            </View>
+            {perf.strongSubjects?.map((s, idx) => (
+              <View key={idx} style={styles.strongPill}>
+                <Text style={styles.strongPillText}>⭐ {s}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Weak Subjects */}
+          <View style={[styles.subjectGroup, { marginTop: 14 }]}>
+            <View style={styles.groupHeader}>
+              <Ionicons name="alert-circle" size={16} color="#ea580c" />
+              <Text style={styles.weakHeading}>Areas Needing Attention:</Text>
+            </View>
+            {perf.weakSubjects?.map((w, idx) => (
+              <View key={idx} style={styles.weakPill}>
+                <Text style={styles.weakPillText}>⚠️ {w}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.aiSolveWeakBtn}
+            onPress={() => router.push("/ai")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="sparkles" size={16} color={Colors.WHITE} />
+            <Text style={styles.aiSolveWeakBtnText}>
+              Strengthen Weak Topics with AI Doubts
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ===============================================================
+            CURRICULUM MODULES & TOPIC PROGRESS CHECKLIST
+            =============================================================== */}
+        <View style={{ marginTop: 18 }}>
+          <Text style={styles.sectionHeaderTitle}>
+            Curriculum Modules Checklist ({courses.length})
           </Text>
 
           {courses.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="book-outline" size={44} color={Colors.GRAY} />
-              <Text style={styles.emptyTitle}>No Courses Enrolled</Text>
+            <View style={styles.emptyCoursesCard}>
+              <Ionicons name="book-outline" size={38} color={Colors.LIGHT_GRAY} />
+              <Text style={styles.emptyCoursesTitle}>No Active Curriculum</Text>
+              <Text style={styles.emptyCoursesSub}>
+                Build your customized syllabus to begin tracking topic completions.
+              </Text>
               <TouchableOpacity
                 onPress={() => router.push("/courses/personalized")}
-                style={styles.emptyBtn}
+                style={styles.createTrackBtn}
               >
-                <Text style={styles.emptyBtnText}>+ Create Personalized Course</Text>
+                <Text style={styles.createTrackBtnText}>+ Build My Curriculum</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -241,67 +290,78 @@ export default function PerformanceScreen() {
               const total = topics.length;
               const completed = completedList.length;
               const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-              const isFinished = total > 0 && completed >= total;
 
               return (
-                <View key={item.id} style={styles.courseCard}>
+                <View key={item.id} style={styles.curriculumCourseCard}>
                   <TouchableOpacity
-                    onPress={() => setExpandedCourseId(isExpanded ? null : item.id)}
-                    style={styles.courseCardHeader}
+                    onPress={() =>
+                      setExpandedCourseId(isExpanded ? null : item.id)
+                    }
+                    style={styles.curriculumHeader}
                     activeOpacity={0.8}
                   >
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={styles.courseTitle} numberOfLines={1}>
-                          {item.courseTitle}
-                        </Text>
-                        <View style={[styles.statusTag, isFinished ? styles.statusTagDone : styles.statusTagActive]}>
-                          <Text style={[styles.statusTagText, isFinished ? { color: "#16a34a" } : { color: Colors.PRIMARY }]}>
-                            {isFinished ? "Completed" : "In Progress"}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.progressBarTrack}>
-                        <View style={[styles.progressBarFill, { width: `${percent}%` }, isFinished && { backgroundColor: "#16a34a" }]} />
-                      </View>
-
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                        <Text style={styles.progressStatText}>
-                          {completed} of {total} topics completed
-                        </Text>
-                        <Text style={[styles.progressPercentText, isFinished && { color: "#16a34a" }]}>
-                          {percent}%
-                        </Text>
-                      </View>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.curriculumTitle} numberOfLines={1}>
+                        {item.courseTitle}
+                      </Text>
+                      <Text style={styles.curriculumMeta}>
+                        {completed} of {total} topics finished ({percent}%)
+                      </Text>
                     </View>
+
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={20}
+                      color={Colors.GRAY}
+                    />
                   </TouchableOpacity>
 
-                  {/* Checklist */}
+                  {/* Progress Line */}
+                  <View style={styles.courseProgressTrack}>
+                    <View
+                      style={[
+                        styles.courseProgressFill,
+                        { width: `${Math.min(percent, 100)}%` },
+                      ]}
+                    />
+                  </View>
+
+                  {/* Interactive Topics List */}
                   {isExpanded && (
-                    <View style={styles.checklistContainer}>
-                      <Text style={styles.checklistHeader}>
-                        Tap topic to toggle completion:
-                      </Text>
-                      {topics.map((t, tIdx) => {
+                    <View style={styles.topicsWrapper}>
+                      {topics.map((t, idx) => {
                         const isDone = completedList.includes(t.id);
                         return (
                           <TouchableOpacity
-                            key={t.id || tIdx}
+                            key={t.id || idx}
                             onPress={() => handleToggleTopic(item.id, t.id)}
-                            style={[styles.topicCheckItem, isDone && styles.topicCheckItemDone]}
+                            style={styles.topicCheckItem}
+                            activeOpacity={0.7}
                           >
                             <Ionicons
-                              name={isDone ? "checkmark-circle" : "ellipse-outline"}
+                              name={
+                                isDone ? "checkmark-circle" : "ellipse-outline"
+                              }
                               size={20}
-                              color={isDone ? "#16a34a" : "#aaa"}
+                              color={isDone ? "#16a34a" : Colors.LIGHT_GRAY}
+                              style={{ marginTop: 2 }}
                             />
                             <View style={{ flex: 1, marginLeft: 10 }}>
-                              <Text style={[styles.topicTitleText, isDone && styles.topicTitleDone]}>
-                                {tIdx + 1}. {t.title}
+                              <Text
+                                style={[
+                                  styles.topicCheckText,
+                                  isDone && styles.topicCheckTextDone,
+                                ]}
+                              >
+                                {idx + 1}. {t.title}
                               </Text>
                               {t.description ? (
-                                <Text style={styles.topicDescText}>{t.description}</Text>
+                                <Text
+                                  style={styles.topicCheckDesc}
+                                  numberOfLines={2}
+                                >
+                                  {t.description}
+                                </Text>
                               ) : null}
                             </View>
                           </TouchableOpacity>
@@ -313,8 +373,8 @@ export default function PerformanceScreen() {
               );
             })
           )}
-        </ScrollView>
-      )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -322,154 +382,213 @@ export default function PerformanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.WHITE, // Pure white background
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 35,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 14,
-    backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,
-    borderBottomColor: "#edf2f7",
+    borderBottomColor: Colors.BORDER_LIGHT,
+    backgroundColor: Colors.WHITE,
   },
   headerTitle: {
     fontFamily: "outfit-bold",
     fontSize: 22,
-    color: "#1e293b",
+    color: Colors.BLACK,
   },
   headerSubtitle: {
     fontFamily: "outfit",
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.GRAY,
     marginTop: 2,
   },
-  streakBadge: {
+  aiHelpBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff7ed",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#ffedd5",
+    backgroundColor: Colors.PRIMARY,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
     gap: 4,
   },
-  streakBadgeText: {
+  aiHelpBtnText: {
     fontFamily: "outfit-bold",
     fontSize: 12,
-    color: "#ea580c",
+    color: Colors.WHITE,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
-  overallHeroBanner: {
-    backgroundColor: Colors.PRIMARY,
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 20,
+
+  /* Hero Banner - Responsive Height with no clipping */
+  heroBanner: {
+    minHeight: 160,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    backgroundColor: Colors.DARK,
     elevation: 3,
     shadowColor: Colors.PRIMARY,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
   },
-  heroBannerTitle: {
+  heroBannerImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  heroBannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(79, 70, 229, 0.90)", // Modern Indigo Wash
+  },
+  heroBannerContent: {
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  streakBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    marginBottom: 6,
+  },
+  streakBadgeText: {
     fontFamily: "outfit-bold",
-    fontSize: 20,
+    fontSize: 11,
     color: Colors.WHITE,
   },
-  heroBannerSubtitle: {
+  heroBigPercentage: {
+    fontFamily: "outfit-bold",
+    fontSize: 44,
+    color: Colors.WHITE,
+    lineHeight: 50,
+  },
+  heroSubHeading: {
+    fontFamily: "outfit-bold",
+    fontSize: 14,
+    color: Colors.WHITE,
+    marginTop: 2,
+  },
+  heroQuote: {
     fontFamily: "outfit",
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.85)",
-    marginTop: 3,
-    lineHeight: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 6,
+    textAlign: "center",
   },
-  pillarsGrid: {
+
+  /* 4 Pillars Grid */
+  pillarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: 10,
-    marginTop: 18,
+    marginBottom: 16,
   },
-  pillarBox: {
+  pillarCard: {
     width: "48%",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 14,
-    padding: 12,
-    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  pillarVal: {
+  pillarIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  pillarValue: {
     fontFamily: "outfit-bold",
     fontSize: 20,
-    color: "#1e293b",
-    marginTop: 4,
+    color: Colors.BLACK,
   },
   pillarLabel: {
     fontFamily: "outfit",
     fontSize: 11,
     color: Colors.GRAY,
     marginTop: 2,
-    textAlign: "center",
   },
-  subjectsSectionCard: {
+
+  /* Proficiency Card */
+  proficiencyCard: {
     backgroundColor: Colors.WHITE,
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 18,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
+    borderColor: Colors.BORDER_LIGHT,
+    marginBottom: 16,
+    shadowColor: "#0f172a",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  subjectCardHeading: {
+  cardSectionTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
-    color: "#1e293b",
+    fontSize: 15,
+    color: Colors.BLACK,
     marginBottom: 12,
   },
-  subjectBox: {
-    backgroundColor: "#f8fafc",
-    padding: 12,
-    borderRadius: 12,
+  subjectGroup: {
+    gap: 6,
   },
-  strongLabel: {
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  strongHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: "#166534",
-  },
-  weakLabel: {
-    fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: "#c2410c",
-  },
-  subjectPillGreen: {
-    backgroundColor: "#f0fdf4",
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  subjectPillGreenText: {
-    fontFamily: "outfit",
     fontSize: 12,
-    color: "#166534",
+    color: "#16a34a",
   },
-  subjectPillOrange: {
+  strongPill: {
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  strongPillText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: "#15803d",
+  },
+  weakHeading: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: "#ea580c",
+  },
+  weakPill: {
     backgroundColor: "#fff7ed",
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
   },
-  subjectPillOrangeText: {
-    fontFamily: "outfit",
+  weakPillText: {
+    fontFamily: "outfit-bold",
     fontSize: 12,
     color: "#c2410c",
   },
@@ -477,146 +596,125 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#eff6ff",
+    backgroundColor: Colors.PRIMARY,
+    paddingVertical: 11,
     borderRadius: 12,
-    paddingVertical: 10,
-    marginTop: 14,
     gap: 6,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
+    marginTop: 14,
   },
   aiSolveWeakBtnText: {
     fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: Colors.PRIMARY,
+    fontSize: 13,
+    color: Colors.WHITE,
   },
-  sectionHeading: {
+
+  /* Section Header */
+  sectionHeaderTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 17,
-    color: "#1e293b",
+    fontSize: 16,
+    color: Colors.BLACK,
     marginBottom: 12,
   },
-  courseCard: {
+  emptyCoursesCard: {
+    backgroundColor: Colors.BG_GRAY,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  emptyCoursesTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 15,
+    color: Colors.BLACK,
+    marginTop: 8,
+  },
+  emptyCoursesSub: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    textAlign: "center",
+    marginTop: 4,
+  },
+  createTrackBtn: {
+    backgroundColor: Colors.PRIMARY,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginTop: 12,
+  },
+  createTrackBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.WHITE,
+  },
+
+  /* Curriculum Course Card */
+  curriculumCourseCard: {
     backgroundColor: Colors.WHITE,
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    borderColor: Colors.BORDER_LIGHT,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  courseCardHeader: {},
-  courseTitle: {
+  curriculumHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  curriculumTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
-    color: "#1e293b",
-    flex: 1,
-    marginRight: 6,
+    fontSize: 15,
+    color: Colors.BLACK,
   },
-  statusTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  curriculumMeta: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: Colors.GRAY,
+    marginTop: 2,
   },
-  statusTagActive: {
-    backgroundColor: "#eff6ff",
-  },
-  statusTagDone: {
-    backgroundColor: "#f0fdf4",
-  },
-  statusTagText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-  },
-  progressBarTrack: {
+  courseProgressTrack: {
     height: 6,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: Colors.BORDER_LIGHT,
     borderRadius: 3,
-    marginVertical: 8,
     overflow: "hidden",
+    marginTop: 10,
   },
-  progressBarFill: {
+  courseProgressFill: {
     height: "100%",
     backgroundColor: Colors.PRIMARY,
     borderRadius: 3,
   },
-  progressStatText: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: Colors.GRAY,
-  },
-  progressPercentText: {
-    fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: Colors.PRIMARY,
-  },
-  checklistContainer: {
+  topicsWrapper: {
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-  },
-  checklistHeader: {
-    fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: "#475569",
-    marginBottom: 8,
+    borderTopColor: Colors.BORDER_LIGHT,
   },
   topicCheckItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#f8fafc",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  topicCheckItemDone: {
-    backgroundColor: "#f0fdf4",
-  },
-  topicTitleText: {
+  topicCheckText: {
     fontFamily: "outfit-bold",
     fontSize: 13,
-    color: "#1e293b",
+    color: Colors.DARK,
   },
-  topicTitleDone: {
-    color: "#64748b",
+  topicCheckTextDone: {
     textDecorationLine: "line-through",
+    color: Colors.LIGHT_GRAY,
   },
-  topicDescText: {
+  topicCheckDesc: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: "#64748b",
+    color: Colors.GRAY,
     marginTop: 2,
-    lineHeight: 15,
-  },
-  emptyCard: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 18,
-    padding: 30,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#edf2f7",
-  },
-  emptyTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 16,
-    color: "#1e293b",
-    marginTop: 10,
-  },
-  emptyBtn: {
-    marginTop: 12,
-    backgroundColor: Colors.PRIMARY,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  emptyBtnText: {
-    fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: Colors.WHITE,
   },
 });

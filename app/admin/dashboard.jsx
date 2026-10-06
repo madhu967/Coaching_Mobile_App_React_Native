@@ -11,7 +11,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  StatusBar,
   ScrollView,
+  Image,
+  Dimensions,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -23,12 +26,73 @@ import { db } from "../../config/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 import Button from "../../components/Shared/Button";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const SLIDE_WIDTH = SCREEN_WIDTH - 40;
+
+const ADMIN_SLIDES = [
+  {
+    id: "platform_growth",
+    badge: "📊 Platform Intel",
+    title: "Institutional Overview",
+    subtitle: "Real-time metrics on students, courses & tests",
+    cta: "Live Analytics",
+    action: "overview",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649620.png",
+  },
+  {
+    id: "faculty_provisioning",
+    badge: "🎓 Faculty Provisioning",
+    title: "Manage Teacher Accounts",
+    subtitle: "Register staff, issue credentials & assign classes",
+    cta: "+ Add Teacher",
+    action: "add_teacher",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649591.png",
+  },
+  {
+    id: "student_directory",
+    badge: "👥 Scholar Directory",
+    title: "Student Performance",
+    subtitle: "Inspect learning curves, created courses & grades",
+    cta: "Inspect Roster",
+    action: "tab_students",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649595.png",
+  },
+  {
+    id: "campus_broadcast",
+    badge: "📢 Campus Broadcast",
+    title: "Instant Push Alerts",
+    subtitle: "Send notices directly to all student & faculty phones",
+    cta: "Send Broadcast",
+    action: "broadcast",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649600.png",
+  },
+];
+
 export default function AdminDashboard() {
   const router = useRouter();
   const creds = getAdminCredentials();
 
   // Navigation tab state: 'overview' | 'students' | 'teachers' | 'courses_classes' | 'settings'
   const [activeTab, setActiveTab] = useState("overview");
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
+  const handleAdminSlideScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / (SLIDE_WIDTH + 14));
+    setActiveSlideIndex(index);
+  };
+
+  const handleAdminSlideAction = (action) => {
+    if (action === "add_teacher") {
+      setShowAddTeacherModal(true);
+    } else if (action === "tab_students") {
+      setActiveTab("students");
+    } else if (action === "broadcast") {
+      setShowBroadcastModal(true);
+    } else if (action === "overview") {
+      setActiveTab("overview");
+    }
+  };
 
   // Data states
   const [courses, setCourses] = useState([]);
@@ -328,26 +392,83 @@ export default function AdminDashboard() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
       }
     >
-      {/* Platform Hero Banner */}
-      <View style={styles.heroCard}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.heroPill}>
-              <Ionicons name="shield-checkmark" size={12} color={Colors.WHITE} />
-              <Text style={styles.heroPillText}>Coaching Guru Admin</Text>
-            </View>
-            <Text style={styles.heroTitle}>Master Analytics</Text>
-            <Text style={styles.heroSubtitle}>
-              Full institutional control across students, teachers & curriculum
-            </Text>
-          </View>
+      {/* Banner Carousel with Primary Cards & Right-Side Transparent 3D Asset */}
+      <View style={styles.sliderContainer}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleAdminSlideScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.sliderScroll}
+          decelerationRate="fast"
+          snapToInterval={SLIDE_WIDTH + 14}
+          snapToAlignment="center"
+        >
+          {ADMIN_SLIDES.map((slide) => (
+            <TouchableOpacity
+              key={slide.id}
+              style={styles.slideCard}
+              activeOpacity={0.9}
+              onPress={() => handleAdminSlideAction(slide.action)}
+            >
+              {/* Left Column: Pill, Title, Subtitle, and CTA Button */}
+              <View style={styles.slideLeftColumn}>
+                <View style={styles.slideBadge}>
+                  <Ionicons name="sparkles" size={11} color={Colors.WHITE} />
+                  <Text style={styles.slideBadgeText}>{slide.badge}</Text>
+                </View>
+                <Text style={styles.slideTitle} numberOfLines={2}>
+                  {slide.title}
+                </Text>
+                <Text style={styles.slideSubtitle} numberOfLines={2}>
+                  {slide.subtitle}
+                </Text>
+                <View style={styles.slideCtaBtn}>
+                  <Text style={styles.slideCtaText}>{slide.cta}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={Colors.PRIMARY} />
+                </View>
+              </View>
 
-          <TouchableOpacity style={styles.broadcastIconBtn} onPress={() => setShowBroadcastModal(true)}>
-            <Ionicons name="megaphone" size={18} color={Colors.WHITE} />
+              {/* Right Column: Transparent PNG with NO Background */}
+              <View style={styles.slideRightColumn}>
+                <Image
+                  source={{ uri: slide.image }}
+                  style={styles.slideTransparentImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Pagination Dots */}
+        <View style={styles.dotsRow}>
+          {ADMIN_SLIDES.map((_, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.dot,
+                idx === activeSlideIndex && styles.activeDot,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* 6 Key Analytics Metric Tiles in Clean Card */}
+      <View style={styles.kpiCard}>
+        <View style={styles.kpiCardHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Ionicons name="stats-chart" size={16} color={Colors.PRIMARY} />
+            <Text style={styles.kpiCardTitle}>Institutional Vital Metrics</Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowBroadcastModal(true)} style={styles.kpiBroadcastBtn}>
+            <Ionicons name="megaphone" size={13} color={Colors.PRIMARY} />
+            <Text style={styles.kpiBroadcastText}>Broadcast</Text>
           </TouchableOpacity>
         </View>
 
-        {/* 6 Key Analytics Metric Tiles */}
         <View style={styles.metricGrid}>
           <View style={styles.metricTile}>
             <Text style={styles.metricVal}>{totalStudentsCount}</Text>
@@ -376,18 +497,52 @@ export default function AdminDashboard() {
         </View>
       </View>
 
-      {/* Broadcast Announcement Bar */}
-      <TouchableOpacity
-        style={styles.broadcastBanner}
-        onPress={() => setShowBroadcastModal(true)}
-      >
-        <Ionicons name="megaphone-outline" size={20} color={Colors.PRIMARY} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.broadcastBannerTitle}>Send Platform Announcement</Text>
-          <Text style={styles.broadcastBannerSub}>Broadcast notifications to all active student apps</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={Colors.PRIMARY} />
-      </TouchableOpacity>
+      {/* Admin Fast Actions Command Strip */}
+      <View style={styles.adminFastActionsRow}>
+        <TouchableOpacity
+          style={styles.adminActionPill}
+          onPress={() => setShowAddTeacherModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="person-add" size={14} color={Colors.PRIMARY} />
+          <Text style={styles.adminActionPillText}>+ Teacher</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.adminActionPill}
+          onPress={() => setShowBroadcastModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="megaphone" size={14} color="#dc2626" />
+          <Text style={[styles.adminActionPillText, { color: "#dc2626" }]}>Broadcast</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.adminActionPill}
+          onPress={() => setActiveTab("students")}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="people" size={14} color="#16a34a" />
+          <Text style={[styles.adminActionPillText, { color: "#16a34a" }]}>Roster</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.adminActionPill}
+          onPress={() => setActiveTab("courses_classes")}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="book" size={14} color="#9333ea" />
+          <Text style={[styles.adminActionPillText, { color: "#9333ea" }]}>Courses</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Institutional Health Banner */}
+      <View style={styles.healthBanner}>
+        <View style={styles.healthDot} />
+        <Text style={styles.healthText}>
+          Institutional Services Operational • 99.98% System Uptime
+        </Text>
+      </View>
 
       {/* Top 5 Students List */}
       <View style={styles.sectionHeaderRow}>
@@ -794,11 +949,22 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.mainContainer}>
-      {/* Top Header */}
+      {/* Top Header with Institutional Status */}
       <View style={styles.topHeader}>
-        <View>
-          <Text style={styles.topHeaderTitle}>Admin Console</Text>
-          <Text style={styles.topHeaderSubtitle}>Platform Institutional Controller</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={styles.adminShieldBox}>
+            <Ionicons name="shield-checkmark" size={20} color={Colors.WHITE} />
+          </View>
+          <View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={styles.topHeaderTitle}>Admin Console</Text>
+              <View style={styles.adminLiveBadge}>
+                <View style={styles.adminLiveDot} />
+                <Text style={styles.adminLiveText}>LIVE</Text>
+              </View>
+            </View>
+            <Text style={styles.topHeaderSubtitle}>Institutional Platform Controller</Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.logoutTopBtn} onPress={handleAdminLogout}>
           <Ionicons name="log-out-outline" size={20} color="#dc2626" />
@@ -995,27 +1161,62 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.WHITE,
   },
   topHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 35,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 12,
     backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,
     borderBottomColor: "#edf2f7",
   },
+  adminShieldBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: Colors.PRIMARY,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 2,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  adminLiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  adminLiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#16a34a",
+  },
+  adminLiveText: {
+    fontFamily: "outfit-bold",
+    fontSize: 9,
+    color: "#16a34a",
+  },
   topHeaderTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 22,
+    fontSize: 18,
     color: "#1e293b",
   },
   topHeaderSubtitle: {
     fontFamily: "outfit",
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.GRAY,
   },
   logoutTopBtn: {
@@ -1026,6 +1227,59 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  /* Fast Actions Strip */
+  adminFastActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    gap: 8,
+  },
+  adminActionPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.WHITE,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+  },
+  adminActionPillText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  healthBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    gap: 8,
+  },
+  healthDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#16a34a",
+  },
+  healthText: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: "#166534",
+  },
   scrollTabContent: {
     padding: 20,
     paddingBottom: 100,
@@ -1035,65 +1289,158 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  heroCard: {
-    backgroundColor: Colors.PRIMARY,
-    borderRadius: 22,
-    padding: 20,
+  /* Banner Slider Styles */
+  sliderContainer: {
     marginBottom: 16,
-    elevation: 3,
-    shadowColor: Colors.PRIMARY,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
   },
-  heroPill: {
+  sliderScroll: {
+    paddingRight: 6,
+  },
+  slideCard: {
+    width: SLIDE_WIDTH,
+    height: 155,
+    borderRadius: 20,
+    marginRight: 14,
+    backgroundColor: Colors.PRIMARY,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    elevation: 4,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+  },
+  slideLeftColumn: {
+    flex: 1.15,
+    justifyContent: "space-between",
+    paddingRight: 6,
+  },
+  slideRightColumn: {
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  slideTransparentImage: {
+    width: 95,
+    height: 95,
+  },
+  slideBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     alignSelf: "flex-start",
-    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     gap: 4,
   },
-  heroPillText: {
+  slideBadgeText: {
+    color: Colors.WHITE,
+    fontSize: 10,
+    fontFamily: "outfit-bold",
+  },
+  slideTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.WHITE,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  slideSubtitle: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.88)",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  slideCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 4,
+    marginTop: 8,
+  },
+  slideCtaText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.WHITE,
+    color: Colors.PRIMARY,
   },
-  heroTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 22,
-    color: Colors.WHITE,
-  },
-  heroSubtitle: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.85)",
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  broadcastIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  dotsRow: {
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#e2e8f0",
+  },
+  activeDot: {
+    width: 18,
+    backgroundColor: Colors.PRIMARY,
+  },
+  kpiCard: {
+    backgroundColor: Colors.WHITE,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  kpiCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  kpiCardTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 14,
+    color: "#1e293b",
+  },
+  kpiBroadcastBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  kpiBroadcastText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
   },
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 18,
   },
   metricTile: {
     width: "31%",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#f8fafc",
     borderRadius: 12,
     padding: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#edf2f7",
   },
   metricVal: {
     fontFamily: "outfit-bold",

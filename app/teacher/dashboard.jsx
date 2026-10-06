@@ -9,8 +9,11 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  StatusBar,
   RefreshControl,
   ScrollView,
+  Image,
+  Dimensions,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -28,6 +31,48 @@ import {
   logoutTeacher,
 } from "../../services/teacherAuth";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const SLIDE_WIDTH = SCREEN_WIDTH - 40;
+
+const TEACHER_SLIDES = [
+  {
+    id: "class_studio",
+    badge: "🎥 Live Studio",
+    title: "Host Live Masterclass",
+    subtitle: "Launch interactive video room & log attendance",
+    cta: "+ New Class",
+    action: "create_class",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649635.png",
+  },
+  {
+    id: "grading_desk",
+    badge: "📝 Homework Desk",
+    title: "Evaluate Assignments",
+    subtitle: "Review student submissions & provide marks",
+    cta: "Review Work",
+    action: "tab_assignments",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649624.png",
+  },
+  {
+    id: "test_authoring",
+    badge: "⏱️ Mock Drills",
+    title: "Create Timed Tests",
+    subtitle: "Publish practice tests & view score analytics",
+    cta: "Manage Tests",
+    action: "tab_tests",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649626.png",
+  },
+  {
+    id: "cohort_mastery",
+    badge: "👥 Academic Roster",
+    title: "Attendance & Mastery",
+    subtitle: "Inspect cohort attendance & weak subject spots",
+    cta: "Inspect Cohort",
+    action: "tab_students",
+    image: "https://cdn-icons-png.flaticon.com/512/8649/8649591.png",
+  },
+];
+
 export default function TeacherDashboard() {
   const router = useRouter();
 
@@ -36,6 +81,25 @@ export default function TeacherDashboard() {
   const [store, setStore] = useState(null);
   const [teacherProfile, setTeacherProfile] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
+  const handleTeacherSlideScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / (SLIDE_WIDTH + 14));
+    setActiveSlideIndex(index);
+  };
+
+  const handleTeacherSlideAction = (action) => {
+    if (action === "create_class") {
+      setShowCreateClassModal(true);
+    } else if (action === "tab_assignments") {
+      setTab("assignments");
+    } else if (action === "tab_tests") {
+      setTab("tests");
+    } else if (action === "tab_students") {
+      setTab("students");
+    }
+  };
 
   // Modals
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
@@ -172,18 +236,28 @@ export default function TeacherDashboard() {
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
+      {/* Top Header with Faculty Identity */}
       <View style={styles.header}>
-        <View style={{ flex: 1, marginRight: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Ionicons name="school" size={20} color={Colors.PRIMARY} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1, marginRight: 10 }}>
+          <View style={styles.facultyAvatarBox}>
+            <Text style={styles.facultyAvatarInitial}>
+              {teacherProfile?.name?.charAt(0) || "T"}
+            </Text>
+            <View style={styles.facultyActiveDot} />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {teacherProfile?.name || "Teacher Portal"}
             </Text>
+            <View style={styles.facultyPillRow}>
+              <View style={styles.facultyBadge}>
+                <Ionicons name="school" size={10} color="#166534" />
+                <Text style={styles.facultyBadgeText}>
+                  {teacherProfile?.subject ? `${teacherProfile.subject} • Faculty` : "Faculty Instructor"}
+                </Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.headerSub} numberOfLines={1}>
-            {teacherProfile?.subject ? `${teacherProfile.subject} • Faculty Console` : "Create • Manage • Monitor"}
-          </Text>
         </View>
 
         <TouchableOpacity
@@ -191,6 +265,106 @@ export default function TeacherDashboard() {
           style={styles.exitBtn}
         >
           <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Banner Carousel with Primary Cards & Right-Side Transparent 3D Asset */}
+      <View style={styles.sliderContainer}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleTeacherSlideScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.sliderScroll}
+          decelerationRate="fast"
+          snapToInterval={SLIDE_WIDTH + 14}
+          snapToAlignment="center"
+        >
+          {TEACHER_SLIDES.map((slide) => (
+            <TouchableOpacity
+              key={slide.id}
+              style={styles.slideCard}
+              activeOpacity={0.9}
+              onPress={() => handleTeacherSlideAction(slide.action)}
+            >
+              {/* Left Column: Pill, Title, Subtitle, and CTA Button */}
+              <View style={styles.slideLeftColumn}>
+                <View style={styles.slideBadge}>
+                  <Ionicons name="sparkles" size={11} color={Colors.WHITE} />
+                  <Text style={styles.slideBadgeText}>{slide.badge}</Text>
+                </View>
+                <Text style={styles.slideTitle} numberOfLines={2}>
+                  {slide.title}
+                </Text>
+                <Text style={styles.slideSubtitle} numberOfLines={2}>
+                  {slide.subtitle}
+                </Text>
+                <View style={styles.slideCtaBtn}>
+                  <Text style={styles.slideCtaText}>{slide.cta}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={Colors.PRIMARY} />
+                </View>
+              </View>
+
+              {/* Right Column: Transparent PNG with NO Background */}
+              <View style={styles.slideRightColumn}>
+                <Image
+                  source={{ uri: slide.image }}
+                  style={styles.slideTransparentImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Pagination Dots */}
+        <View style={styles.dotsRow}>
+          {TEACHER_SLIDES.map((_, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.dot,
+                idx === activeSlideIndex && styles.activeDot,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Faculty Quick Action Command Dock */}
+      <View style={styles.quickLaunchDock}>
+        <TouchableOpacity
+          style={styles.dockTile}
+          onPress={() => setShowCreateClassModal(true)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.dockIconCircle, { backgroundColor: "#fee2e2" }]}>
+            <Ionicons name="videocam" size={15} color="#dc2626" />
+          </View>
+          <Text style={styles.dockTileTitle}>+ Live Class</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dockTile}
+          onPress={() => setShowCreateAsnModal(true)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.dockIconCircle, { backgroundColor: "#fff7ed" }]}>
+            <Ionicons name="document-text" size={15} color="#ea580c" />
+          </View>
+          <Text style={styles.dockTileTitle}>+ Assignment</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dockTile}
+          onPress={() => setTab("students")}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.dockIconCircle, { backgroundColor: "#f0fdf4" }]}>
+            <Ionicons name="people" size={15} color="#16a34a" />
+          </View>
+          <Text style={styles.dockTileTitle}>Cohort Roster</Text>
         </TouchableOpacity>
       </View>
 
@@ -239,19 +413,33 @@ export default function TeacherDashboard() {
 
           {store.classes.map((cls) => (
             <View key={cls.id} style={styles.cardItem}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.cardItemTitle}>{cls.title}</Text>
-                <View style={styles.statusBadgeSmall}>
-                  <Text style={styles.statusBadgeSmallText}>{cls.subject}</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <View style={styles.studioLivePill}>
+                      <View style={styles.studioPulseDot} />
+                      <Text style={styles.studioLivePillText}>STUDIO READY</Text>
+                    </View>
+                    <Text style={styles.classSubjectChip}>{cls.subject}</Text>
+                  </View>
+                  <Text style={styles.cardItemTitle}>{cls.title}</Text>
+                </View>
+
+                <View style={[styles.attendanceBadgeSmall, cls.attendanceMarked && { backgroundColor: "#f0fdf4" }]}>
+                  <Ionicons
+                    name={cls.attendanceMarked ? "checkmark-circle" : "time-outline"}
+                    size={11}
+                    color={cls.attendanceMarked ? "#16a34a" : "#ca8a04"}
+                  />
+                  <Text style={[styles.attendanceBadgeText, cls.attendanceMarked && { color: "#16a34a" }]}>
+                    {cls.attendanceMarked ? "Marked" : "Check-in Open"}
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.cardItemMeta}>⏰ {cls.time}</Text>
-              <Text style={styles.cardItemMeta}>📍 {cls.roomNumber}</Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
-                <Text style={styles.cardItemTeacher}>Faculty: {cls.teacherName}</Text>
-                <Text style={[styles.cardItemTeacher, { color: "#16a34a", fontFamily: "outfit-bold" }]}>
-                  {cls.attendanceMarked ? "Attendance Marked" : "Open"}
-                </Text>
+
+              <View style={styles.classMetaRow}>
+                <Text style={styles.cardItemMeta}>⏰ {cls.time}</Text>
+                <Text style={styles.cardItemMeta}>📍 {cls.roomNumber}</Text>
               </View>
             </View>
           ))}
@@ -512,7 +700,110 @@ export default function TeacherDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.WHITE,
+  },
+  /* Banner Slider Styles */
+  sliderContainer: {
+    paddingTop: 10,
+    marginBottom: 4,
+  },
+  sliderScroll: {
+    paddingHorizontal: 20,
+    paddingRight: 6,
+  },
+  slideCard: {
+    width: SLIDE_WIDTH,
+    height: 155,
+    borderRadius: 20,
+    marginRight: 14,
+    backgroundColor: Colors.PRIMARY,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    elevation: 4,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+  },
+  slideLeftColumn: {
+    flex: 1.15,
+    justifyContent: "space-between",
+    paddingRight: 6,
+  },
+  slideRightColumn: {
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  slideTransparentImage: {
+    width: 95,
+    height: 95,
+  },
+  slideBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  slideBadgeText: {
+    color: Colors.WHITE,
+    fontSize: 10,
+    fontFamily: "outfit-bold",
+  },
+  slideTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.WHITE,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  slideSubtitle: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.88)",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  slideCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 4,
+    marginTop: 8,
+  },
+  slideCtaText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.PRIMARY,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#e2e8f0",
+  },
+  activeDot: {
+    width: 18,
+    backgroundColor: Colors.PRIMARY,
   },
   centerBox: {
     flex: 1,
@@ -524,21 +815,100 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 35,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 12,
     backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,
     borderBottomColor: "#edf2f7",
   },
+  facultyAvatarBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1.5,
+    borderColor: "#bbf7d0",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  facultyAvatarInitial: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: "#166534",
+  },
+  facultyActiveDot: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#22c55e",
+    borderWidth: 1.5,
+    borderColor: Colors.WHITE,
+  },
   headerTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 20,
+    fontSize: 18,
     color: "#1e293b",
   },
-  headerSub: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: Colors.GRAY,
+  facultyPillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  facultyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#dcfce7",
+  },
+  facultyBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: "#166534",
+  },
+  /* Faculty Quick Action Dock */
+  quickLaunchDock: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginVertical: 10,
+    gap: 8,
+  },
+  dockTile: {
+    flex: 1,
+    backgroundColor: Colors.WHITE,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    gap: 6,
+  },
+  dockIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dockTileTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: "#1e293b",
   },
   exitBtn: {
     width: 36,
@@ -619,6 +989,59 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#edf2f7",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+  },
+  studioLivePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+  },
+  studioPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#dc2626",
+  },
+  studioLivePillText: {
+    fontFamily: "outfit-bold",
+    fontSize: 9,
+    color: "#dc2626",
+  },
+  classSubjectChip: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.PRIMARY,
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  attendanceBadgeSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef9c3",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  attendanceBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: "#854d0e",
+  },
+  classMetaRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
   },
   cardItemTitle: {
     fontFamily: "outfit-bold",

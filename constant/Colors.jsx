@@ -1,10 +1,27 @@
 const Colors = {
-  WHITE: '#fff',
-  BLACK: '#000',
-  PRIMARY: '#0077ff',
-  SECONDARY: '#6B7280',
-  GRAY: '#858585',
-  BG_GRAY:'#f2f2f2'
+  WHITE: "#FFFFFF",
+  BLACK: "#0F172A",
+  DARK: "#1E293B",
+  PRIMARY: "#4F46E5", // Modern Electric Indigo (2026 Premier EdTech)
+  PRIMARY_DARK: "#4338CA",
+  PRIMARY_LIGHT: "#EEF2FF",
+  PRIMARY_TINT: "#E0E7FF",
+  SECONDARY: "#0EA5E9", // Vibrant Sky Cyan Accent
+  SECONDARY_LIGHT: "#F0F9FF",
+  GRAY: "#64748B",
+  LIGHT_GRAY: "#94A3B8",
+  BORDER: "#E2E8F0",
+  BORDER_LIGHT: "#F1F5F9",
+  BG_GRAY: "#F8FAFC",
+  CANVAS: "#FFFFFF", // Pure white background
+  SUCCESS: "#10B981",
+  SUCCESS_LIGHT: "#ECFDF5",
+  WARNING: "#F59E0B",
+  WARNING_LIGHT: "#FFFBEB",
+  DANGER: "#EF4444",
+  DANGER_LIGHT: "#FEF2F2",
+  PURPLE: "#8B5CF6",
+  PURPLE_LIGHT: "#F5F3FF",
 };
 
 export default Colors;

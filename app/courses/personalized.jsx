@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -201,10 +202,25 @@ Generate 5-7 focused, sequential topics matching their available study time and 
         </View>
       </View>
 
-      <Text style={styles.pageTitle}>Create Course Based on Your Needs</Text>
-      <Text style={styles.pageSubtitle}>
-        Tell AI your goals, available study hours, and timeline — we'll generate a custom curriculum built specifically for you.
-      </Text>
+      {/* Visual Hero Banner with Unsplash Image */}
+      <View style={styles.topHeroCard}>
+        <Image
+          source={{
+            uri: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=900&auto=format&fit=crop&q=80",
+          }}
+          style={styles.topHeroImage}
+          resizeMode="cover"
+        />
+        <View style={styles.topHeroOverlay} />
+        <View style={styles.topHeroContent}>
+          <Text style={styles.topHeroTitle}>
+            Create Course Based on Your Needs
+          </Text>
+          <Text style={styles.topHeroSub}>
+            Goal • Skill Level • Available Study Hours • Target Completion Date
+          </Text>
+        </View>
+      </View>
 
       {/* 1. Goal Selection */}
       <View style={styles.sectionCard}>
@@ -386,7 +402,45 @@ Generate 5-7 focused, sequential topics matching their available study time and 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.WHITE,
+  },
+  topHeroCard: {
+    height: 140,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 20,
+    backgroundColor: Colors.DARK,
+    elevation: 3,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  topHeroImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  topHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+  },
+  topHeroContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: "center",
+  },
+  topHeroTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: Colors.WHITE,
+    marginBottom: 4,
+  },
+  topHeroSub: {
+    fontFamily: "outfit",
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.85)",
+    lineHeight: 16,
   },
   header: {
     flexDirection: "row",

@@ -53,7 +53,7 @@ export default function TeacherLogin() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+      style={{ flex: 1, backgroundColor: Colors.WHITE }}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}

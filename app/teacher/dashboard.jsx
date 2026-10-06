@@ -234,337 +234,471 @@ export default function TeacherDashboard() {
     );
   }
 
+  const currentHour = new Date().getHours();
+  const greeting =
+    currentHour < 12
+      ? "Good morning,"
+      : currentHour < 18
+      ? "Good afternoon,"
+      : "Good evening,";
+
+  const teacherName = teacherProfile?.name || "Faculty Member";
+  const teacherInitial = teacherName.charAt(0).toUpperCase();
+  const cohortAttendance = store?.attendance?.overallPercentage || 92;
+  const totalActivitiesCount =
+    (store?.classes?.length || 0) +
+    (store?.assignments?.length || 0) +
+    (store?.tests?.length || 0);
+
   return (
     <View style={styles.container}>
-      {/* Top Header with Faculty Identity */}
-      <View style={styles.header}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1, marginRight: 10 }}>
-          <View style={styles.facultyAvatarBox}>
-            <Text style={styles.facultyAvatarInitial}>
-              {teacherProfile?.name?.charAt(0) || "T"}
-            </Text>
-            <View style={styles.facultyActiveDot} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {teacherProfile?.name || "Teacher Portal"}
-            </Text>
-            <View style={styles.facultyPillRow}>
-              <View style={styles.facultyBadge}>
-                <Ionicons name="school" size={10} color="#166534" />
-                <Text style={styles.facultyBadgeText}>
-                  {teacherProfile?.subject ? `${teacherProfile.subject} • Faculty` : "Faculty Instructor"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onPress={handleTeacherLogout}
-          style={styles.exitBtn}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#dc2626" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Banner Carousel with Primary Cards & Right-Side Transparent 3D Asset */}
-      <View style={styles.sliderContainer}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleTeacherSlideScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.sliderScroll}
-          decelerationRate="fast"
-          snapToInterval={SLIDE_WIDTH + 14}
-          snapToAlignment="center"
-        >
-          {TEACHER_SLIDES.map((slide) => (
-            <TouchableOpacity
-              key={slide.id}
-              style={styles.slideCard}
-              activeOpacity={0.9}
-              onPress={() => handleTeacherSlideAction(slide.action)}
-            >
-              {/* Left Column: Pill, Title, Subtitle, and CTA Button */}
-              <View style={styles.slideLeftColumn}>
-                <View style={styles.slideBadge}>
-                  <Ionicons name="sparkles" size={11} color={Colors.WHITE} />
-                  <Text style={styles.slideBadgeText}>{slide.badge}</Text>
-                </View>
-                <Text style={styles.slideTitle} numberOfLines={2}>
-                  {slide.title}
-                </Text>
-                <Text style={styles.slideSubtitle} numberOfLines={2}>
-                  {slide.subtitle}
-                </Text>
-                <View style={styles.slideCtaBtn}>
-                  <Text style={styles.slideCtaText}>{slide.cta}</Text>
-                  <Ionicons name="arrow-forward" size={12} color={Colors.PRIMARY} />
-                </View>
-              </View>
-
-              {/* Right Column: Transparent PNG with NO Background */}
-              <View style={styles.slideRightColumn}>
-                <Image
-                  source={{ uri: slide.image }}
-                  style={styles.slideTransparentImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Pagination Dots */}
-        <View style={styles.dotsRow}>
-          {TEACHER_SLIDES.map((_, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.dot,
-                idx === activeSlideIndex && styles.activeDot,
-              ]}
-            />
-          ))}
-        </View>
-      </View>
-
-      {/* Faculty Quick Action Command Dock */}
-      <View style={styles.quickLaunchDock}>
-        <TouchableOpacity
-          style={styles.dockTile}
-          onPress={() => setShowCreateClassModal(true)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.dockIconCircle, { backgroundColor: "#fee2e2" }]}>
-            <Ionicons name="videocam" size={15} color="#dc2626" />
-          </View>
-          <Text style={styles.dockTileTitle}>+ Live Class</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.dockTile}
-          onPress={() => setShowCreateAsnModal(true)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.dockIconCircle, { backgroundColor: "#fff7ed" }]}>
-            <Ionicons name="document-text" size={15} color="#ea580c" />
-          </View>
-          <Text style={styles.dockTileTitle}>+ Assignment</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.dockTile}
-          onPress={() => setTab("students")}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.dockIconCircle, { backgroundColor: "#f0fdf4" }]}>
-            <Ionicons name="people" size={15} color="#16a34a" />
-          </View>
-          <Text style={styles.dockTileTitle}>Cohort Roster</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Teacher Navigation Pills */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabScrollRow}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.BLACK]}
+            tintColor={Colors.BLACK}
+          />
+        }
       >
-        {[
-          { key: "classes", label: "Live Classes", icon: "videocam-outline" },
-          { key: "assignments", label: "Assignments", icon: "document-text-outline" },
-          { key: "tests", label: "Tests & Drills", icon: "ribbon-outline" },
-          { key: "students", label: "Attendance & Performance", icon: "people-outline" },
-        ].map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            onPress={() => setTab(t.key)}
-            style={[styles.pillBtn, tab === t.key && styles.pillBtnActive]}
-          >
-            <Ionicons
-              name={t.icon}
-              size={16}
-              color={tab === t.key ? Colors.WHITE : Colors.PRIMARY}
-            />
-            <Text style={[styles.pillBtnText, tab === t.key && styles.pillBtnTextActive]}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Tab 1: Live Classes */}
-      {tab === "classes" && (
-        <ScrollView contentContainerStyle={styles.tabContent}>
-          <View style={styles.actionHeaderBar}>
-            <Text style={styles.tabHeading}>Scheduled Classes ({store.classes.length})</Text>
-            <TouchableOpacity
-              style={styles.addBtnSmall}
-              onPress={() => setShowCreateClassModal(true)}
-            >
-              <Ionicons name="add" size={16} color={Colors.WHITE} />
-              <Text style={styles.addBtnText}>+ New Class</Text>
-            </TouchableOpacity>
+        {/* ===============================================================
+            1. TOP HEADER (Good morning, Teacher Name, Streak, FACULTY Badge, Avatar with Lime Dot)
+            =============================================================== */}
+        <View style={styles.topHeader}>
+          <View>
+            <Text style={styles.welcomeSub}>{greeting}</Text>
+            <Text style={styles.userNameText}>{teacherName}</Text>
           </View>
 
-          {store.classes.map((cls) => (
-            <View key={cls.id} style={styles.cardItem}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <View style={styles.studioLivePill}>
-                      <View style={styles.studioPulseDot} />
-                      <Text style={styles.studioLivePillText}>STUDIO READY</Text>
-                    </View>
-                    <Text style={styles.classSubjectChip}>{cls.subject}</Text>
-                  </View>
-                  <Text style={styles.cardItemTitle}>{cls.title}</Text>
-                </View>
-
-                <View style={[styles.attendanceBadgeSmall, cls.attendanceMarked && { backgroundColor: "#f0fdf4" }]}>
-                  <Ionicons
-                    name={cls.attendanceMarked ? "checkmark-circle" : "time-outline"}
-                    size={11}
-                    color={cls.attendanceMarked ? "#16a34a" : "#ca8a04"}
-                  />
-                  <Text style={[styles.attendanceBadgeText, cls.attendanceMarked && { color: "#16a34a" }]}>
-                    {cls.attendanceMarked ? "Marked" : "Check-in Open"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.classMetaRow}>
-                <Text style={styles.cardItemMeta}>⏰ {cls.time}</Text>
-                <Text style={styles.cardItemMeta}>📍 {cls.roomNumber}</Text>
-              </View>
+          <View style={styles.headerRightGroup}>
+            <View style={styles.streakPill}>
+              <Text style={styles.streakPillText}>⚡ Studio Live</Text>
             </View>
-          ))}
-        </ScrollView>
-      )}
 
-      {/* Tab 2: Assignments */}
-      {tab === "assignments" && (
-        <ScrollView contentContainerStyle={styles.tabContent}>
-          <View style={styles.actionHeaderBar}>
-            <Text style={styles.tabHeading}>Assignments ({store.assignments.length})</Text>
-            <TouchableOpacity
-              style={styles.addBtnSmall}
-              onPress={() => setShowCreateAsnModal(true)}
-            >
-              <Ionicons name="add" size={16} color={Colors.WHITE} />
-              <Text style={styles.addBtnText}>+ New Assignment</Text>
-            </TouchableOpacity>
-          </View>
-
-          {store.assignments.map((asn) => (
-            <View key={asn.id} style={styles.cardItem}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.cardItemTitle}>{asn.title}</Text>
-                <View style={[styles.statusBadgeSmall, asn.status === "graded" && { backgroundColor: "#f0fdf4" }]}>
-                  <Text style={[styles.statusBadgeSmallText, asn.status === "graded" && { color: "#16a34a" }]}>
-                    {asn.status.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.cardItemMeta}>Deadline: {asn.deadline} • Total: {asn.totalMarks} Marks</Text>
-
-              {asn.status === "submitted" && (
-                <TouchableOpacity
-                  style={styles.gradeActionBtn}
-                  onPress={() => {
-                    setGradingItem(asn);
-                    setGradeMarks("");
-                    setGradeFeedback("");
-                  }}
-                >
-                  <Ionicons name="pencil" size={14} color={Colors.WHITE} />
-                  <Text style={styles.gradeActionBtnText}>Grade Student Submission</Text>
-                </TouchableOpacity>
-              )}
-
-              {asn.status === "graded" && (
-                <View style={styles.gradedSummaryBox}>
-                  <Text style={styles.gradedSummaryText}>
-                    Graded: {asn.obtainedMarks}/{asn.totalMarks} • "{asn.teacherFeedback}"
-                  </Text>
-                </View>
-              )}
+            <View style={styles.proBadge}>
+              <Text style={styles.proText}>FACULTY</Text>
             </View>
-          ))}
-        </ScrollView>
-      )}
 
-      {/* Tab 3: Tests */}
-      {tab === "tests" && (
-        <ScrollView contentContainerStyle={styles.tabContent}>
-          <View style={styles.actionHeaderBar}>
-            <Text style={styles.tabHeading}>Tests & Question Banks</Text>
             <TouchableOpacity
-              style={styles.addBtnSmall}
-              onPress={() =>
-                Alert.alert("New Test", "Create custom timed mock drill with auto-scoring.")
-              }
+              onPress={handleTeacherLogout}
+              activeOpacity={0.8}
+              style={styles.avatarWrapper}
             >
-              <Ionicons name="add" size={16} color={Colors.WHITE} />
-              <Text style={styles.addBtnText}>+ Create Test</Text>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarInitial}>{teacherInitial}</Text>
+              </View>
+              {/* Electric Lime Active Indicator Dot */}
+              <View style={styles.activeLimeDot} />
             </TouchableOpacity>
           </View>
+        </View>
 
-          {store.tests.map((tst) => (
-            <View key={tst.id} style={styles.cardItem}>
-              <Text style={styles.cardItemTitle}>{tst.title}</Text>
-              <Text style={styles.cardItemMeta}>
-                {tst.type} • {tst.totalQuestions} Questions • {tst.durationMinutes} Minutes
+        {/* ===============================================================
+            2. DISPLAY TITLE ("Faculty Dashboard / Academic Studio ⁽⁴⁾")
+            =============================================================== */}
+        <View style={styles.headingSection}>
+          <Text style={styles.displaySubHeading}>Faculty Dashboard</Text>
+          <View style={styles.displayMainRow}>
+            <Text style={styles.displayMainHeading}>Academic Studio</Text>
+            <Text style={styles.superscriptBadge}>({totalActivitiesCount})</Text>
+          </View>
+        </View>
+
+        {/* ===============================================================
+            3. DATE, COHORT ATTENDANCE 92% & SUBJECT/DESK ROADMAP TREE
+            =============================================================== */}
+        <View style={styles.dateAndRoadmapRow}>
+          {/* Left: Electric Lime Date Pill + Attendance % Display */}
+          <View style={styles.dateBlock}>
+            <View style={styles.limeDatePill}>
+              <Text style={styles.limeDateText}>Cohort Attendance</Text>
+            </View>
+            <Text style={styles.giantDateNumber}>{cohortAttendance}%</Text>
+            <Text style={styles.attendanceMetaText}>Verified Standing</Text>
+          </View>
+
+          {/* Right: Vertical Tree Roadmap Selector (Coaching App Faculty Desks) */}
+          <View style={styles.roadmapTreeContainer}>
+            <View style={styles.roadmapLine} />
+
+            {/* Branch 1 */}
+            <TouchableOpacity
+              style={styles.roadmapBranch}
+              onPress={() => setTab("classes")}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.roadmapDot,
+                  tab === "classes" && styles.roadmapDotActive,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.roadmapBranchText,
+                  tab === "classes" && styles.roadmapBranchTextActive,
+                ]}
+              >
+                Live Masterclass
               </Text>
-              <Text style={styles.cardItemMeta}>Pass Marks: {tst.passMarks} • Schedule: {tst.scheduledDate}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+            </TouchableOpacity>
 
-      {/* Tab 4: Students Attendance & Performance */}
-      {tab === "students" && (
-        <ScrollView contentContainerStyle={styles.tabContent}>
-          <Text style={styles.tabHeading}>Student Attendance & Performance</Text>
-          <Text style={styles.tabSubheading}>Monitoring student attendance health & scores</Text>
+            {/* Branch 2 */}
+            <TouchableOpacity
+              style={styles.roadmapBranch}
+              onPress={() => setTab("assignments")}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.roadmapDot,
+                  tab === "assignments" && styles.roadmapDotActive,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.roadmapBranchText,
+                  tab === "assignments" && styles.roadmapBranchTextActive,
+                ]}
+              >
+                Assignment Desk
+              </Text>
+            </TouchableOpacity>
 
-          <View style={styles.perfOverviewCard}>
-            <View style={styles.perfStat}>
-              <Text style={styles.perfStatVal}>{store.attendance.overallPercentage}%</Text>
-              <Text style={styles.perfStatLabel}>Avg Attendance</Text>
+            {/* Branch 3 */}
+            <TouchableOpacity
+              style={styles.roadmapBranch}
+              onPress={() => setTab("students")}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.roadmapDot,
+                  tab === "students" && styles.roadmapDotActive,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.roadmapBranchText,
+                  tab === "students" && styles.roadmapBranchTextActive,
+                ]}
+              >
+                Cohort Roster
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ===============================================================
+            4. FILTER PILLS ROW (Count icon, Active tab pill, + Quick Action)
+            =============================================================== */}
+        <View style={styles.filterPillRow}>
+          <TouchableOpacity
+            style={styles.filterIconBtn}
+            onPress={() => setTab("classes")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="videocam-outline" size={17} color={Colors.BLACK} />
+            <View style={styles.filterLimeDot}>
+              <Text style={styles.filterLimeDotText}>{store.classes.length}</Text>
             </View>
-            <View style={styles.perfDivider} />
-            <View style={styles.perfStat}>
-              <Text style={styles.perfStatVal}>{store.performance.testAverageScore}%</Text>
-              <Text style={styles.perfStatLabel}>Test Average</Text>
-            </View>
-            <View style={styles.perfDivider} />
-            <View style={styles.perfStat}>
-              <Text style={styles.perfStatVal}>{store.performance.learningStreakDays}d</Text>
-              <Text style={styles.perfStatLabel}>Avg Streak</Text>
-            </View>
+          </TouchableOpacity>
+
+          <View style={styles.activeFilterPill}>
+            <Text style={styles.activeFilterText}>
+              {tab === "classes"
+                ? "Live Classes"
+                : tab === "assignments"
+                ? "Assignments"
+                : tab === "tests"
+                ? "Timed Tests"
+                : "Student Roster"}
+            </Text>
+            <Ionicons name="checkmark" size={13} color={Colors.BLACK} />
           </View>
 
-          <Text style={[styles.tabHeading, { fontSize: 15, marginTop: 16 }]}>Subject Attendance Roster:</Text>
-          {store.attendance.subjectWise.map((s, idx) => (
-            <View key={idx} style={styles.rosterCard}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.rosterSubject}>{s.subject}</Text>
-                <Text style={[styles.rosterPercent, s.percent < 75 && { color: "#dc2626" }]}>
-                  {s.percent}%
+          <TouchableOpacity
+            style={styles.secondaryFilterPill}
+            onPress={() => setShowCreateClassModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add" size={12} color={Colors.BLACK} />
+            <Text style={styles.secondaryFilterText}>Schedule Class</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ===============================================================
+            5. IMAGE SLIDER BANNER CAROUSEL (DEDICATED CAROUSEL)
+            =============================================================== */}
+        <View style={styles.sliderContainer}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleTeacherSlideScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.sliderScroll}
+            decelerationRate="fast"
+            snapToInterval={SLIDE_WIDTH + 14}
+            snapToAlignment="center"
+          >
+            {TEACHER_SLIDES.map((slide) => (
+              <TouchableOpacity
+                key={slide.id}
+                style={styles.slideCard}
+                activeOpacity={0.92}
+                onPress={() => handleTeacherSlideAction(slide.action)}
+              >
+                <View style={styles.slideLeftColumn}>
+                  <View style={styles.slideBadge}>
+                    <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
+                    <Text style={styles.slideBadgeText}>{slide.badge}</Text>
+                  </View>
+                  <Text style={styles.slideTitle} numberOfLines={2}>
+                    {slide.title}
+                  </Text>
+                  <Text style={styles.slideSubtitle} numberOfLines={2}>
+                    {slide.subtitle}
+                  </Text>
+                  <View style={styles.slideCtaBtn}>
+                    <Text style={styles.slideCtaText}>{slide.cta}</Text>
+                    <Ionicons name="arrow-forward" size={12} color={Colors.BLACK} />
+                  </View>
+                </View>
+
+                <View style={styles.slideRightColumn}>
+                  <Image
+                    source={{ uri: slide.image }}
+                    style={styles.slideTransparentImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.dotsRow}>
+            {TEACHER_SLIDES.map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.dot,
+                  idx === activeSlideIndex && styles.activeDot,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* ===============================================================
+            6. FACULTY QUICK ACTION COMMAND DOCK
+            =============================================================== */}
+        <View style={styles.quickLaunchDock}>
+          <TouchableOpacity
+            style={styles.dockTile}
+            onPress={() => setShowCreateClassModal(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.dockIconCircle, { backgroundColor: Colors.LIME_LIGHT }]}>
+              <Ionicons name="videocam" size={16} color={Colors.BLACK} />
+            </View>
+            <Text style={styles.dockTileTitle}>+ Live Class</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockTile}
+            onPress={() => setShowCreateAsnModal(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.dockIconCircle, { backgroundColor: "#FFF7ED" }]}>
+              <Ionicons name="document-text" size={16} color="#EA580C" />
+            </View>
+            <Text style={styles.dockTileTitle}>+ Assignment</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockTile}
+            onPress={() => setTab("students")}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.dockIconCircle, { backgroundColor: "#F0FDF4" }]}>
+              <Ionicons name="people" size={16} color="#16A34A" />
+            </View>
+            <Text style={styles.dockTileTitle}>Cohort Roster</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ===============================================================
+            7. TAB CONTENT (Classes / Assignments / Tests / Students Roster)
+            =============================================================== */}
+        {tab === "classes" && (
+          <View style={styles.tabContentWrapper}>
+            <View style={styles.actionHeaderBar}>
+              <Text style={styles.tabHeading}>Scheduled Classes ({store.classes.length})</Text>
+              <TouchableOpacity
+                style={styles.addBtnSmall}
+                onPress={() => setShowCreateClassModal(true)}
+              >
+                <Ionicons name="add" size={16} color={Colors.WHITE} />
+                <Text style={styles.addBtnText}>+ New Class</Text>
+              </TouchableOpacity>
+            </View>
+
+            {store.classes.map((cls) => (
+              <View key={cls.id} style={styles.cardItem}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <View style={styles.studioLivePill}>
+                        <View style={styles.studioPulseDot} />
+                        <Text style={styles.studioLivePillText}>STUDIO READY</Text>
+                      </View>
+                      <Text style={styles.classSubjectChip}>{cls.subject}</Text>
+                    </View>
+                    <Text style={styles.cardItemTitle}>{cls.title}</Text>
+                  </View>
+
+                  <View style={[styles.attendanceBadgeSmall, cls.attendanceMarked && { backgroundColor: "#f0fdf4" }]}>
+                    <Ionicons
+                      name={cls.attendanceMarked ? "checkmark-circle" : "time-outline"}
+                      size={11}
+                      color={cls.attendanceMarked ? "#16a34a" : "#ca8a04"}
+                    />
+                    <Text style={[styles.attendanceBadgeText, cls.attendanceMarked && { color: "#16a34a" }]}>
+                      {cls.attendanceMarked ? "Marked" : "Check-in Open"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.classMetaRow}>
+                  <Text style={styles.cardItemMeta}>⏰ {cls.time}</Text>
+                  <Text style={styles.cardItemMeta}>📍 {cls.roomNumber}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {tab === "assignments" && (
+          <View style={styles.tabContentWrapper}>
+            <View style={styles.actionHeaderBar}>
+              <Text style={styles.tabHeading}>Assignments ({store.assignments.length})</Text>
+              <TouchableOpacity
+                style={styles.addBtnSmall}
+                onPress={() => setShowCreateAsnModal(true)}
+              >
+                <Ionicons name="add" size={16} color={Colors.WHITE} />
+                <Text style={styles.addBtnText}>+ New Assignment</Text>
+              </TouchableOpacity>
+            </View>
+
+            {store.assignments.map((asn) => (
+              <View key={asn.id} style={styles.cardItem}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={styles.cardItemTitle}>{asn.title}</Text>
+                  <View style={[styles.statusBadgeSmall, asn.status === "graded" && { backgroundColor: "#f0fdf4" }]}>
+                    <Text style={[styles.statusBadgeSmallText, asn.status === "graded" && { color: "#16a34a" }]}>
+                      {asn.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.cardItemMeta}>Deadline: {asn.deadline} • Total: {asn.totalMarks} Marks</Text>
+
+                {asn.status === "submitted" && (
+                  <TouchableOpacity
+                    style={styles.gradeActionBtn}
+                    onPress={() => {
+                      setGradingItem(asn);
+                      setGradeMarks("");
+                      setGradeFeedback("");
+                    }}
+                  >
+                    <Ionicons name="pencil" size={14} color={Colors.WHITE} />
+                    <Text style={styles.gradeActionBtnText}>Grade Student Submission</Text>
+                  </TouchableOpacity>
+                )}
+
+                {asn.status === "graded" && (
+                  <View style={styles.gradedSummaryBox}>
+                    <Text style={styles.gradedSummaryText}>
+                      Graded: {asn.obtainedMarks}/{asn.totalMarks} • "{asn.teacherFeedback}"
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {tab === "tests" && (
+          <View style={styles.tabContentWrapper}>
+            <View style={styles.actionHeaderBar}>
+              <Text style={styles.tabHeading}>Tests & Question Banks</Text>
+              <TouchableOpacity
+                style={styles.addBtnSmall}
+                onPress={() =>
+                  Alert.alert("New Test", "Create custom timed mock drill with auto-scoring.")
+                }
+              >
+                <Ionicons name="add" size={16} color={Colors.WHITE} />
+                <Text style={styles.addBtnText}>+ Create Test</Text>
+              </TouchableOpacity>
+            </View>
+
+            {store.tests.map((tst) => (
+              <View key={tst.id} style={styles.cardItem}>
+                <Text style={styles.cardItemTitle}>{tst.title}</Text>
+                <Text style={styles.cardItemMeta}>
+                  {tst.type} • {tst.totalQuestions} Questions • {tst.durationMinutes} Minutes
+                </Text>
+                <Text style={styles.cardItemMeta}>Pass Marks: {tst.passMarks} • Schedule: {tst.scheduledDate}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {tab === "students" && (
+          <View style={styles.tabContentWrapper}>
+            <Text style={styles.tabHeading}>Student Attendance & Performance</Text>
+            <Text style={styles.tabSubheading}>Monitoring student attendance health & scores</Text>
+
+            <View style={styles.perfOverviewCard}>
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>{store.attendance.overallPercentage}%</Text>
+                <Text style={styles.perfStatLabel}>Avg Attendance</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>{store.performance.testAverageScore}%</Text>
+                <Text style={styles.perfStatLabel}>Test Average</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>{store.performance.learningStreakDays}d</Text>
+                <Text style={styles.perfStatLabel}>Avg Streak</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.tabHeading, { fontSize: 15, marginTop: 16 }]}>Subject Attendance Roster:</Text>
+            {store.attendance.subjectWise.map((s, idx) => (
+              <View key={idx} style={styles.rosterCard}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={styles.rosterSubject}>{s.subject}</Text>
+                  <Text style={[styles.rosterPercent, s.percent < 75 && { color: "#dc2626" }]}>
+                    {s.percent}%
+                  </Text>
+                </View>
+                <Text style={styles.rosterDetails}>
+                  {s.attended} of {s.total} sessions logged
                 </Text>
               </View>
-              <Text style={styles.rosterDetails}>
-                {s.attended} of {s.total} sessions logged
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {/* Create Class Modal */}
       <Modal visible={showCreateClassModal} transparent animationType="slide">
@@ -693,6 +827,45 @@ export default function TeacherDashboard() {
           </View>
         </View>
       </Modal>
+
+      {/* Teacher Floating Capsule Bottom Navigation Dock */}
+      <View style={styles.floatingDockWrapper} pointerEvents="box-none">
+        <View style={styles.floatingDock}>
+          {[
+            { key: "classes", label: "Classes", activeIcon: "videocam", inactiveIcon: "videocam-outline" },
+            { key: "assignments", label: "Tasks", activeIcon: "document-text", inactiveIcon: "document-text-outline" },
+            { key: "tests", label: "Tests", activeIcon: "timer", inactiveIcon: "timer-outline" },
+            { key: "students", label: "Roster", activeIcon: "people", inactiveIcon: "people-outline" },
+          ].map((item) => {
+            const isFocused = tab === item.key;
+            if (isFocused) {
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => setTab(item.key)}
+                  activeOpacity={0.88}
+                  style={styles.activePillCapsule}
+                >
+                  <Ionicons name={item.activeIcon} size={16} color={Colors.WHITE} />
+                  <Text style={styles.activePillText}>{item.label}</Text>
+                  <View style={styles.dockLimeDot} />
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setTab(item.key)}
+                activeOpacity={0.7}
+                style={styles.inactiveIconBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name={item.inactiveIcon} size={22} color={Colors.MUTED} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -700,12 +873,278 @@ export default function TeacherDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG_LIGHT,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
+    paddingBottom: 110,
+  },
+  centerBox: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.BG_LIGHT,
+  },
+
+  /* Top Header */
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  welcomeSub: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.MUTED,
+  },
+  userNameText: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: Colors.BLACK,
+    marginTop: 1,
+  },
+  headerRightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  streakPill: {
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  streakPillText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: "#EA580C",
+  },
+  proBadge: {
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  proText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.WHITE,
+    letterSpacing: 0.5,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginLeft: 2,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  avatarInitial: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.BLACK,
+  },
+  activeLimeDot: {
+    position: "absolute",
+    bottom: 0,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.LIME,
+    borderWidth: 2,
+    borderColor: Colors.WHITE,
+  },
+
+  /* Display Headings */
+  headingSection: {
+    marginBottom: 20,
+  },
+  displaySubHeading: {
+    fontFamily: "outfit",
+    fontSize: 28,
+    color: Colors.MUTED,
+    letterSpacing: -0.5,
+  },
+  displayMainRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  displayMainHeading: {
+    fontFamily: "outfit-bold",
+    fontSize: 32,
+    color: Colors.BLACK,
+    letterSpacing: -0.8,
+  },
+  superscriptBadge: {
+    fontFamily: "outfit",
+    fontSize: 16,
+    color: Colors.MUTED,
+  },
+
+  /* Date & Roadmap Row (92% Attendance & Vertical Tree) */
+  dateAndRoadmapRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  dateBlock: {
+    alignItems: "flex-start",
+  },
+  limeDatePill: {
+    backgroundColor: Colors.LIME_BRIGHT,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  limeDateText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.BLACK,
+  },
+  giantDateNumber: {
+    fontFamily: "outfit-bold",
+    fontSize: 52,
+    color: Colors.BLACK,
+    lineHeight: 58,
+    marginTop: 4,
+    letterSpacing: -1,
+  },
+  attendanceMetaText: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.MUTED,
+  },
+
+  /* Roadmap Tree */
+  roadmapTreeContainer: {
+    position: "relative",
+    paddingLeft: 18,
+    gap: 6,
+    marginTop: 6,
+  },
+  roadmapLine: {
+    position: "absolute",
+    left: 4,
+    top: 8,
+    bottom: 8,
+    width: 1,
+    backgroundColor: Colors.BORDER,
+  },
+  roadmapBranch: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  roadmapDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.BORDER,
+    marginLeft: -18,
+  },
+  roadmapDotActive: {
+    backgroundColor: Colors.BLACK,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roadmapBranchText: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.MUTED,
+  },
+  roadmapBranchTextActive: {
+    fontFamily: "outfit-bold",
+    color: Colors.BLACK,
+  },
+
+  /* Filter Pill Row */
+  filterPillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  filterIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  filterLimeDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.LIME,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterLimeDotText: {
+    fontFamily: "outfit-bold",
+    fontSize: 9,
+    color: Colors.BLACK,
+  },
+  activeFilterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.CHIP_BG,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    gap: 6,
+  },
+  activeFilterText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.BLACK,
+  },
+  secondaryFilterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    gap: 5,
+  },
+  secondaryFilterText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.BLACK,
+  },
+  tabContentWrapper: {
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+
   /* Banner Slider Styles */
   sliderContainer: {
-    paddingTop: 10,
-    marginBottom: 4,
+    paddingTop: 12,
+    marginBottom: 6,
   },
   sliderScroll: {
     paddingHorizontal: 20,
@@ -713,19 +1152,21 @@ const styles = StyleSheet.create({
   },
   slideCard: {
     width: SLIDE_WIDTH,
-    height: 155,
-    borderRadius: 20,
+    height: 158,
+    borderRadius: 24,
     marginRight: 14,
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.DARK_CARD,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 14,
-    elevation: 4,
-    shadowColor: Colors.PRIMARY,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
   slideLeftColumn: {
     flex: 1.15,
@@ -746,28 +1187,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
-    paddingHorizontal: 8,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 10,
     gap: 4,
   },
   slideBadgeText: {
-    color: Colors.WHITE,
-    fontSize: 10,
+    color: Colors.BLACK,
+    fontSize: 10.5,
     fontFamily: "outfit-bold",
   },
   slideTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 16.5,
     color: Colors.WHITE,
-    marginTop: 4,
-    lineHeight: 20,
+    marginTop: 5,
+    lineHeight: 21,
   },
   slideSubtitle: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: "rgba(255, 255, 255, 0.88)",
+    color: "rgba(255, 255, 255, 0.72)",
     marginTop: 2,
     lineHeight: 15,
   },
@@ -775,23 +1216,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: Colors.WHITE,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 10,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 12,
     gap: 4,
     marginTop: 8,
   },
   slideCtaText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 4,
     gap: 6,
   },
@@ -799,128 +1240,54 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: Colors.BORDER,
   },
   activeDot: {
-    width: 18,
-    backgroundColor: Colors.PRIMARY,
+    width: 20,
+    backgroundColor: Colors.LIME,
   },
-  centerBox: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
-    paddingBottom: 12,
-    backgroundColor: Colors.WHITE,
-    borderBottomWidth: 1,
-    borderBottomColor: "#edf2f7",
-  },
-  facultyAvatarBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#f0fdf4",
-    borderWidth: 1.5,
-    borderColor: "#bbf7d0",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  facultyAvatarInitial: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#166534",
-  },
-  facultyActiveDot: {
-    position: "absolute",
-    bottom: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#22c55e",
-    borderWidth: 1.5,
-    borderColor: Colors.WHITE,
-  },
-  headerTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#1e293b",
-  },
-  facultyPillRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  facultyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#dcfce7",
-  },
-  facultyBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: "#166534",
-  },
+
   /* Faculty Quick Action Dock */
   quickLaunchDock: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     marginVertical: 10,
-    gap: 8,
+    gap: 10,
   },
   dockTile: {
     flex: 1,
     backgroundColor: Colors.WHITE,
-    borderRadius: 14,
-    paddingVertical: 10,
+    borderRadius: 18,
+    paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: Colors.BORDER_LIGHT,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: 6,
     gap: 6,
   },
   dockIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   dockTileTitle: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: "#1e293b",
+    color: Colors.BLACK,
   },
-  exitBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#fef2f2",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+
+  /* Navigation Pills */
   tabScrollRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     gap: 8,
   },
   pillBtn: {
@@ -931,25 +1298,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: Colors.BORDER_LIGHT,
     gap: 6,
   },
   pillBtnActive: {
-    backgroundColor: Colors.PRIMARY,
-    borderColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK,
+    borderColor: Colors.BLACK,
   },
   pillBtnText: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: "#475569",
+    fontFamily: "outfit-medium",
+    fontSize: 12.5,
+    color: Colors.GRAY,
   },
   pillBtnTextActive: {
     color: Colors.WHITE,
     fontFamily: "outfit-bold",
   },
+
+  /* Content Area */
   tabContent: {
     padding: 20,
-    paddingBottom: 60,
+    paddingBottom: 120, // clearance for floating dock
   },
   actionHeaderBar: {
     flexDirection: "row",
@@ -959,8 +1328,9 @@ const styles = StyleSheet.create({
   },
   tabHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 17,
-    color: "#1e293b",
+    fontSize: 18,
+    color: Colors.BLACK,
+    letterSpacing: -0.3,
   },
   tabSubheading: {
     fontFamily: "outfit",
@@ -971,10 +1341,10 @@ const styles = StyleSheet.create({
   addBtnSmall: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.PRIMARY,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 12,
     gap: 4,
   },
   addBtnText: {
@@ -982,13 +1352,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.WHITE,
   },
+
+  /* Cards */
   cardItem: {
     backgroundColor: Colors.WHITE,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: Colors.BORDER_LIGHT,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -998,7 +1370,7 @@ const styles = StyleSheet.create({
   studioLivePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fee2e2",
+    backgroundColor: "#FEE2E2",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1008,26 +1380,26 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#dc2626",
+    backgroundColor: Colors.DANGER,
   },
   studioLivePillText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: "#dc2626",
+    color: Colors.DANGER,
   },
   classSubjectChip: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.PRIMARY,
-    backgroundColor: "#eff6ff",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    color: Colors.BLACK,
+    backgroundColor: Colors.LIME_LIGHT,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
     borderRadius: 6,
   },
   attendanceBadgeSmall: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef9c3",
+    backgroundColor: "#FEF9C3",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -1036,7 +1408,7 @@ const styles = StyleSheet.create({
   attendanceBadgeText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: "#854d0e",
+    color: "#854D0E",
   },
   classMetaRow: {
     flexDirection: "row",
@@ -1045,21 +1417,21 @@ const styles = StyleSheet.create({
   },
   cardItemTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 15,
-    color: "#1e293b",
+    fontSize: 15.5,
+    color: Colors.BLACK,
     flex: 1,
     marginRight: 6,
   },
   statusBadgeSmall: {
-    backgroundColor: "#eff6ff",
+    backgroundColor: Colors.CHIP_BG,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   statusBadgeSmallText: {
     fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: Colors.PRIMARY,
+    fontSize: 10.5,
+    color: Colors.BLACK,
   },
   cardItemMeta: {
     fontFamily: "outfit",
@@ -1070,28 +1442,30 @@ const styles = StyleSheet.create({
   cardItemTeacher: {
     fontFamily: "outfit",
     fontSize: 12,
-    color: "#475569",
+    color: Colors.GRAY,
   },
   gradeActionBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.PRIMARY,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: Colors.BLACK,
+    paddingVertical: 10,
+    borderRadius: 12,
     gap: 6,
     marginTop: 10,
   },
   gradeActionBtnText: {
     fontFamily: "outfit-bold",
-    fontSize: 12,
+    fontSize: 12.5,
     color: Colors.WHITE,
   },
   gradedSummaryBox: {
-    backgroundColor: "#f0fdf4",
-    padding: 8,
-    borderRadius: 8,
+    backgroundColor: "#F0FDF4",
+    padding: 10,
+    borderRadius: 10,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
   },
   gradedSummaryText: {
     fontFamily: "outfit",
@@ -1102,19 +1476,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     backgroundColor: Colors.WHITE,
-    padding: 16,
-    borderRadius: 16,
+    padding: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#edf2f7",
-    marginBottom: 14,
+    borderColor: Colors.BORDER_LIGHT,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   perfStat: {
     alignItems: "center",
   },
   perfStatVal: {
     fontFamily: "outfit-bold",
-    fontSize: 20,
-    color: Colors.PRIMARY,
+    fontSize: 22,
+    color: Colors.BLACK,
   },
   perfStatLabel: {
     fontFamily: "outfit",
@@ -1124,54 +1503,56 @@ const styles = StyleSheet.create({
   },
   perfDivider: {
     width: 1,
-    height: 28,
-    backgroundColor: "#e2e8f0",
+    height: 32,
+    backgroundColor: Colors.BORDER_LIGHT,
   },
   rosterCard: {
     backgroundColor: Colors.WHITE,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: Colors.BORDER_LIGHT,
   },
   rosterSubject: {
     fontFamily: "outfit-bold",
     fontSize: 14,
-    color: "#1e293b",
+    color: Colors.BLACK,
   },
   rosterPercent: {
     fontFamily: "outfit-bold",
     fontSize: 14,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   rosterDetails: {
     fontFamily: "outfit",
     fontSize: 12,
     color: Colors.GRAY,
-    marginTop: 2,
+    marginTop: 3,
   },
+
+  /* Modals */
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "flex-end",
   },
   modalBox: {
     backgroundColor: Colors.WHITE,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 24,
     paddingBottom: 40,
   },
   modalTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#1e293b",
+    fontSize: 19,
+    color: Colors.BLACK,
   },
   gradeAsnName: {
     fontFamily: "outfit-bold",
     fontSize: 15,
-    color: "#1e293b",
+    color: Colors.BLACK,
   },
   studentSubmittedText: {
     fontFamily: "outfit",
@@ -1181,14 +1562,71 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   modalInput: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
+    backgroundColor: Colors.CHIP_BG,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
-    padding: 12,
+    borderColor: Colors.BORDER_LIGHT,
+    padding: 13,
     fontFamily: "outfit",
     fontSize: 14,
-    color: "#1e293b",
+    color: Colors.BLACK,
     marginBottom: 10,
+  },
+
+  /* Floating Capsule Bottom Dock */
+  floatingDockWrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: Platform.OS === "ios" ? 28 : 18,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 99,
+  },
+  floatingDock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    width: "90%",
+    maxWidth: 390,
+    borderWidth: 1,
+    borderColor: "rgba(230, 232, 236, 0.85)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  activePillCapsule: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
+    gap: 6,
+  },
+  activePillText: {
+    color: Colors.WHITE,
+    fontFamily: "outfit-bold",
+    fontSize: 13,
+  },
+  dockLimeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: Colors.LIME,
+    marginLeft: 1,
+  },
+  inactiveIconBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
   },
 });

@@ -466,14 +466,10 @@ export default function Home() {
                 <Text style={styles.pupilsFractionText}>Goal • Skill • Daily Hours</Text>
               </View>
 
-              <View style={styles.swipeIndicatorRow}>
-                <Ionicons name="chevron-up" size={14} color={Colors.MUTED} />
-                <Text style={styles.swipeIndicatorText}>Tap to build</Text>
-              </View>
-
-              {/* Floating Pitch Black Plus Button */}
-              <View style={styles.blackPlusBtn}>
-                <Ionicons name="arrow-forward" size={20} color={Colors.WHITE} />
+              {/* Primary Color Action Button */}
+              <View style={styles.primaryActionBtn}>
+                <Text style={styles.primaryActionBtnText}>Create Course</Text>
+                <Ionicons name="arrow-forward" size={16} color={Colors.BLACK} />
               </View>
             </View>
           </TouchableOpacity>
@@ -1239,18 +1235,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.MUTED,
   },
-  blackPlusBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.BLACK,
+  primaryActionBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Colors.BLACK,
+    backgroundColor: Colors.LIME, // Vibrant Primary Color
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 6,
+    shadowColor: Colors.LIME,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+  },
+  primaryActionBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 13,
+    color: Colors.BLACK,
   },
 
   /* Active Course Section */

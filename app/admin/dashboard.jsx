@@ -383,15 +383,187 @@ export default function AdminDashboard() {
   });
 
   /* =======================================================================
-     TAB 1: OVERVIEW & ANALYTICS
+     TAB 1: OVERVIEW & ANALYTICS (STUDENT SIGNATURE UI SIGNATURE)
      ======================================================================= */
+  const currentHour = new Date().getHours();
+  const greeting =
+    currentHour < 12
+      ? "Good morning,"
+      : currentHour < 18
+      ? "Good afternoon,"
+      : "Good evening,";
+
+  const adminName = "Platform Director";
+  const platformHealth = "92%";
+  const totalActivitiesCount =
+    totalCoursesCount + totalStudentsCount + totalTeachersCount;
+
   const renderOverviewTab = () => (
     <ScrollView
       contentContainerStyle={styles.scrollTabContent}
+      showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.BLACK]} />
       }
     >
+      {/* ===============================================================
+          1. TOP HEADER (Good morning, Admin Name, Streak, ADMIN Badge, Avatar with Lime Dot)
+          =============================================================== */}
+      <View style={styles.topHeaderGroup}>
+        <View>
+          <Text style={styles.welcomeSub}>{greeting}</Text>
+          <Text style={styles.userNameText}>{adminName}</Text>
+        </View>
+
+        <View style={styles.headerRightGroup}>
+          <View style={styles.streakPill}>
+            <Text style={styles.streakPillText}>⚡ Platform Live</Text>
+          </View>
+
+          <View style={styles.proBadge}>
+            <Text style={styles.proText}>ADMIN</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleAdminLogout}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>A</Text>
+            </View>
+            {/* Electric Lime Active Indicator Dot */}
+            <View style={styles.activeLimeDot} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ===============================================================
+          2. DISPLAY TITLE ("Admin Dashboard / Institutional Hub ⁽¹²⁾")
+          =============================================================== */}
+      <View style={styles.headingSection}>
+        <Text style={styles.displaySubHeading}>Admin Dashboard</Text>
+        <View style={styles.displayMainRow}>
+          <Text style={styles.displayMainHeading}>Institutional Hub</Text>
+          <Text style={styles.superscriptBadge}>({totalActivitiesCount})</Text>
+        </View>
+      </View>
+
+      {/* ===============================================================
+          3. DATE, PLATFORM HEALTH 92% & VERTICAL ROADMAP TREE
+          =============================================================== */}
+      <View style={styles.dateAndRoadmapRow}>
+        {/* Left: Electric Lime Date Pill + Health % Display */}
+        <View style={styles.dateBlock}>
+          <View style={styles.limeDatePill}>
+            <Text style={styles.limeDateText}>Platform Health</Text>
+          </View>
+          <Text style={styles.giantDateNumber}>{platformHealth}</Text>
+          <Text style={styles.attendanceMetaText}>Verified Standing</Text>
+        </View>
+
+        {/* Right: Vertical Tree Roadmap Selector (Coaching App Admin Hubs) */}
+        <View style={styles.roadmapTreeContainer}>
+          <View style={styles.roadmapLine} />
+
+          {/* Branch 1 */}
+          <TouchableOpacity
+            style={styles.roadmapBranch}
+            onPress={() => setActiveTab("students")}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[
+                styles.roadmapDot,
+                activeTab === "students" && styles.roadmapDotActive,
+              ]}
+            />
+            <Text
+              style={[
+                styles.roadmapBranchText,
+                activeTab === "students" && styles.roadmapBranchTextActive,
+              ]}
+            >
+              Pupil Directory
+            </Text>
+          </TouchableOpacity>
+
+          {/* Branch 2 */}
+          <TouchableOpacity
+            style={styles.roadmapBranch}
+            onPress={() => setActiveTab("teachers")}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[
+                styles.roadmapDot,
+                activeTab === "teachers" && styles.roadmapDotActive,
+              ]}
+            />
+            <Text
+              style={[
+                styles.roadmapBranchText,
+                activeTab === "teachers" && styles.roadmapBranchTextActive,
+              ]}
+            >
+              Faculty Roster
+            </Text>
+          </TouchableOpacity>
+
+          {/* Branch 3 */}
+          <TouchableOpacity
+            style={styles.roadmapBranch}
+            onPress={() => setActiveTab("courses_classes")}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[
+                styles.roadmapDot,
+                activeTab === "courses_classes" && styles.roadmapDotActive,
+              ]}
+            />
+            <Text
+              style={[
+                styles.roadmapBranchText,
+                activeTab === "courses_classes" && styles.roadmapBranchTextActive,
+              ]}
+            >
+              Curriculum Ops
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ===============================================================
+          4. FILTER PILLS ROW (Count icon, Active tab pill, + Quick Action)
+          =============================================================== */}
+      <View style={styles.filterPillRow}>
+        <TouchableOpacity
+          style={styles.filterIconBtn}
+          onPress={() => setActiveTab("students")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="people-outline" size={17} color={Colors.BLACK} />
+          <View style={styles.filterLimeDot}>
+            <Text style={styles.filterLimeDotText}>{totalStudentsCount}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.activeFilterPill}>
+          <Text style={styles.activeFilterText}>Platform Intel</Text>
+          <Ionicons name="checkmark" size={13} color={Colors.BLACK} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.secondaryFilterPill}
+          onPress={() => setShowAddTeacherModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={12} color={Colors.BLACK} />
+          <Text style={styles.secondaryFilterText}>Add Faculty</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Banner Carousel with Primary Cards & Right-Side Transparent 3D Asset */}
       <View style={styles.sliderContainer}>
         <ScrollView
@@ -409,13 +581,13 @@ export default function AdminDashboard() {
             <TouchableOpacity
               key={slide.id}
               style={styles.slideCard}
-              activeOpacity={0.9}
+              activeOpacity={0.92}
               onPress={() => handleAdminSlideAction(slide.action)}
             >
               {/* Left Column: Pill, Title, Subtitle, and CTA Button */}
               <View style={styles.slideLeftColumn}>
                 <View style={styles.slideBadge}>
-                  <Ionicons name="sparkles" size={11} color={Colors.WHITE} />
+                  <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
                   <Text style={styles.slideBadgeText}>{slide.badge}</Text>
                 </View>
                 <Text style={styles.slideTitle} numberOfLines={2}>
@@ -426,7 +598,7 @@ export default function AdminDashboard() {
                 </Text>
                 <View style={styles.slideCtaBtn}>
                   <Text style={styles.slideCtaText}>{slide.cta}</Text>
-                  <Ionicons name="arrow-forward" size={12} color={Colors.PRIMARY} />
+                  <Ionicons name="arrow-forward" size={12} color={Colors.BLACK} />
                 </View>
               </View>
 
@@ -648,7 +820,7 @@ export default function AdminDashboard() {
       <FlatList
         data={filteredStudents}
         keyExtractor={(item) => item.email}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 115 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
         }
@@ -841,7 +1013,7 @@ export default function AdminDashboard() {
       <FlatList
         data={filteredCourses}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 115 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
         }
@@ -949,27 +1121,35 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.mainContainer}>
-      {/* Top Header with Institutional Status */}
-      <View style={styles.topHeader}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View style={styles.adminShieldBox}>
-            <Ionicons name="shield-checkmark" size={20} color={Colors.WHITE} />
-          </View>
-          <View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Text style={styles.topHeaderTitle}>Admin Console</Text>
-              <View style={styles.adminLiveBadge}>
-                <View style={styles.adminLiveDot} />
-                <Text style={styles.adminLiveText}>LIVE</Text>
-              </View>
+      {/* Top Header for sub-tabs */}
+      {activeTab !== "overview" && (
+        <View style={styles.topHeader}>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            onPress={() => setActiveTab("overview")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.subTabBackCircle}>
+              <Ionicons name="arrow-back" size={18} color={Colors.BLACK} />
             </View>
-            <Text style={styles.topHeaderSubtitle}>Institutional Platform Controller</Text>
-          </View>
+            <View>
+              <Text style={styles.subTabTitle}>
+                {activeTab === "students"
+                  ? "Pupil Directory"
+                  : activeTab === "teachers"
+                  ? "Faculty Provisioning"
+                  : activeTab === "courses_classes"
+                  ? "Curriculum Ops"
+                  : "Platform Config"}
+              </Text>
+              <Text style={styles.subTabSubtitle}>Institutional Admin</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutTopBtn} onPress={handleAdminLogout} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={20} color={Colors.BLACK} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.logoutTopBtn} onPress={handleAdminLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#dc2626" />
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Main Tab Screen Body */}
       <View style={{ flex: 1 }}>
@@ -991,62 +1171,44 @@ export default function AdminDashboard() {
         )}
       </View>
 
-      {/* Admin Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("overview")}>
-          <Ionicons
-            name={activeTab === "overview" ? "grid" : "grid-outline"}
-            size={22}
-            color={activeTab === "overview" ? Colors.PRIMARY : "#94a3b8"}
-          />
-          <Text style={[styles.navLabel, activeTab === "overview" && styles.navLabelActive]}>
-            Overview
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("students")}>
-          <Ionicons
-            name={activeTab === "students" ? "people" : "people-outline"}
-            size={22}
-            color={activeTab === "students" ? Colors.PRIMARY : "#94a3b8"}
-          />
-          <Text style={[styles.navLabel, activeTab === "students" && styles.navLabelActive]}>
-            Students
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("teachers")}>
-          <Ionicons
-            name={activeTab === "teachers" ? "school" : "school-outline"}
-            size={22}
-            color={activeTab === "teachers" ? Colors.PRIMARY : "#94a3b8"}
-          />
-          <Text style={[styles.navLabel, activeTab === "teachers" && styles.navLabelActive]}>
-            Teachers
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("courses_classes")}>
-          <Ionicons
-            name={activeTab === "courses_classes" ? "book" : "book-outline"}
-            size={22}
-            color={activeTab === "courses_classes" ? Colors.PRIMARY : "#94a3b8"}
-          />
-          <Text style={[styles.navLabel, activeTab === "courses_classes" && styles.navLabelActive]}>
-            Courses
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("settings")}>
-          <Ionicons
-            name={activeTab === "settings" ? "settings" : "settings-outline"}
-            size={22}
-            color={activeTab === "settings" ? Colors.PRIMARY : "#94a3b8"}
-          />
-          <Text style={[styles.navLabel, activeTab === "settings" && styles.navLabelActive]}>
-            Settings
-          </Text>
-        </TouchableOpacity>
+      {/* Admin Floating Capsule Bottom Navigation Dock */}
+      <View style={styles.floatingDockWrapper} pointerEvents="box-none">
+        <View style={styles.floatingDock}>
+          {[
+            { key: "overview", label: "Intel", activeIcon: "grid", inactiveIcon: "grid-outline" },
+            { key: "students", label: "Pupils", activeIcon: "people", inactiveIcon: "people-outline" },
+            { key: "teachers", label: "Faculty", activeIcon: "school", inactiveIcon: "school-outline" },
+            { key: "courses_classes", label: "Courses", activeIcon: "book", inactiveIcon: "book-outline" },
+            { key: "settings", label: "Config", activeIcon: "settings", inactiveIcon: "settings-outline" },
+          ].map((item) => {
+            const isFocused = activeTab === item.key;
+            if (isFocused) {
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => setActiveTab(item.key)}
+                  activeOpacity={0.88}
+                  style={styles.activePillCapsule}
+                >
+                  <Ionicons name={item.activeIcon} size={15} color={Colors.WHITE} />
+                  <Text style={styles.activePillText}>{item.label}</Text>
+                  <View style={styles.dockLimeDot} />
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setActiveTab(item.key)}
+                activeOpacity={0.7}
+                style={styles.inactiveIconBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+              >
+                <Ionicons name={item.inactiveIcon} size={20} color={Colors.MUTED} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Add Teacher Modal */}
@@ -1161,7 +1323,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG_LIGHT,
   },
   topHeader: {
     flexDirection: "row",
@@ -1169,61 +1331,284 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
-    paddingBottom: 12,
+    paddingBottom: 14,
     backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,
-    borderBottomColor: "#edf2f7",
+    borderBottomColor: Colors.BORDER_LIGHT,
   },
-  adminShieldBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: Colors.PRIMARY,
+  subTabBackCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.CHIP_BG,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: Colors.PRIMARY,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
-  adminLiveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
-  },
-  adminLiveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#16a34a",
-  },
-  adminLiveText: {
+  subTabTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 9,
-    color: "#16a34a",
+    fontSize: 16,
+    color: Colors.BLACK,
   },
-  topHeaderTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#1e293b",
-  },
-  topHeaderSubtitle: {
+  subTabSubtitle: {
     fontFamily: "outfit",
     fontSize: 11,
     color: Colors.GRAY,
   },
+
+  /* Student UI Signature Top Header & Controls */
+  topHeaderGroup: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  welcomeSub: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.MUTED,
+  },
+  userNameText: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: Colors.BLACK,
+    marginTop: 1,
+  },
+  headerRightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  streakPill: {
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  streakPillText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: "#EA580C",
+  },
+  proBadge: {
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  proText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.WHITE,
+    letterSpacing: 0.5,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginLeft: 2,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  avatarInitial: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.BLACK,
+  },
+  activeLimeDot: {
+    position: "absolute",
+    bottom: 0,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.LIME,
+    borderWidth: 2,
+    borderColor: Colors.WHITE,
+  },
+
+  /* Display Headings */
+  headingSection: {
+    marginBottom: 20,
+  },
+  displaySubHeading: {
+    fontFamily: "outfit",
+    fontSize: 28,
+    color: Colors.MUTED,
+    letterSpacing: -0.5,
+  },
+  displayMainRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  displayMainHeading: {
+    fontFamily: "outfit-bold",
+    fontSize: 32,
+    color: Colors.BLACK,
+    letterSpacing: -0.8,
+  },
+  superscriptBadge: {
+    fontFamily: "outfit",
+    fontSize: 16,
+    color: Colors.MUTED,
+  },
+
+  /* Date & Roadmap Row (92% Platform Health & Vertical Tree) */
+  dateAndRoadmapRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  dateBlock: {
+    alignItems: "flex-start",
+  },
+  limeDatePill: {
+    backgroundColor: Colors.LIME_BRIGHT,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  limeDateText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.BLACK,
+  },
+  giantDateNumber: {
+    fontFamily: "outfit-bold",
+    fontSize: 52,
+    color: Colors.BLACK,
+    lineHeight: 58,
+    marginTop: 4,
+    letterSpacing: -1,
+  },
+  attendanceMetaText: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.MUTED,
+  },
+
+  /* Roadmap Tree */
+  roadmapTreeContainer: {
+    position: "relative",
+    paddingLeft: 18,
+    gap: 6,
+    marginTop: 6,
+  },
+  roadmapLine: {
+    position: "absolute",
+    left: 4,
+    top: 8,
+    bottom: 8,
+    width: 1,
+    backgroundColor: Colors.BORDER,
+  },
+  roadmapBranch: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  roadmapDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.BORDER,
+    marginLeft: -18,
+  },
+  roadmapDotActive: {
+    backgroundColor: Colors.BLACK,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roadmapBranchText: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.MUTED,
+  },
+  roadmapBranchTextActive: {
+    fontFamily: "outfit-bold",
+    color: Colors.BLACK,
+  },
+
+  /* Filter Pill Row */
+  filterPillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  filterIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  filterLimeDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.LIME,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterLimeDotText: {
+    fontFamily: "outfit-bold",
+    fontSize: 9,
+    color: Colors.BLACK,
+  },
+  activeFilterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.CHIP_BG,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    gap: 6,
+  },
+  activeFilterText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.BLACK,
+  },
+  secondaryFilterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    gap: 5,
+  },
+  secondaryFilterText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.BLACK,
+  },
   logoutTopBtn: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: "#fef2f2",
+    borderRadius: 19,
+    backgroundColor: Colors.CHIP_BG,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1282,7 +1667,7 @@ const styles = StyleSheet.create({
   },
   scrollTabContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 115,
   },
   centerContainer: {
     flex: 1,
@@ -1298,19 +1683,21 @@ const styles = StyleSheet.create({
   },
   slideCard: {
     width: SLIDE_WIDTH,
-    height: 155,
-    borderRadius: 20,
+    height: 158,
+    borderRadius: 24,
     marginRight: 14,
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.DARK_CARD,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 14,
-    elevation: 4,
-    shadowColor: Colors.PRIMARY,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
   slideLeftColumn: {
     flex: 1.15,
@@ -1331,28 +1718,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
-    paddingHorizontal: 8,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 10,
     gap: 4,
   },
   slideBadgeText: {
-    color: Colors.WHITE,
-    fontSize: 10,
+    color: Colors.BLACK,
+    fontSize: 10.5,
     fontFamily: "outfit-bold",
   },
   slideTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 16.5,
     color: Colors.WHITE,
-    marginTop: 4,
-    lineHeight: 20,
+    marginTop: 5,
+    lineHeight: 21,
   },
   slideSubtitle: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: "rgba(255, 255, 255, 0.88)",
+    color: "rgba(255, 255, 255, 0.72)",
     marginTop: 2,
     lineHeight: 15,
   },
@@ -1360,23 +1747,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: Colors.WHITE,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 10,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 12,
     gap: 4,
     marginTop: 8,
   },
   slideCtaText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 4,
     gap: 6,
   },
@@ -1384,11 +1771,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: Colors.BORDER,
   },
   activeDot: {
-    width: 18,
-    backgroundColor: Colors.PRIMARY,
+    width: 20,
+    backgroundColor: Colors.LIME,
   },
   kpiCard: {
     backgroundColor: Colors.WHITE,
@@ -2026,35 +2413,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#dc2626",
   },
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: Colors.WHITE,
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === "ios" ? 24 : 12,
-    borderTopWidth: 1,
-    borderTopColor: "#edf2f7",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-  },
-  navItem: {
+  floatingDockWrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: Platform.OS === "ios" ? 28 : 18,
     alignItems: "center",
     justifyContent: "center",
-    flex: 1,
+    zIndex: 99,
   },
-  navLabel: {
-    fontFamily: "outfit",
-    fontSize: 11,
-    color: "#94a3b8",
-    marginTop: 2,
+  floatingDock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    width: "92%",
+    maxWidth: 410,
+    borderWidth: 1,
+    borderColor: "rgba(230, 232, 236, 0.85)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
   },
-  navLabelActive: {
+  activePillCapsule: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 22,
+    gap: 5,
+  },
+  activePillText: {
+    color: Colors.WHITE,
     fontFamily: "outfit-bold",
-    color: Colors.PRIMARY,
+    fontSize: 12,
+  },
+  dockLimeDot: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.25,
+    backgroundColor: Colors.LIME,
+    marginLeft: 1,
+  },
+  inactiveIconBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
   },
   modalOverlay: {
     flex: 1,

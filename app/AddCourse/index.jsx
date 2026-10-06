@@ -112,26 +112,29 @@ export default function AddCourse() {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: "#eff6ff",
-          padding: 14,
-          borderRadius: 14,
+          backgroundColor: Colors.DARK_CARD,
+          padding: 16,
+          borderRadius: 20,
           marginVertical: 14,
           borderWidth: 1,
-          borderColor: "#bfdbfe",
+          borderColor: "rgba(255, 255, 255, 0.08)",
         }}
         onPress={() => router.push("/courses/personalized")}
-        activeOpacity={0.8}
+        activeOpacity={0.88}
       >
-        <Ionicons name="sparkles" size={22} color={Colors.PRIMARY} style={{ marginRight: 10 }} />
+        <Ionicons name="sparkles" size={22} color={Colors.LIME} style={{ marginRight: 10 }} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: "outfit-bold", fontSize: 13, color: Colors.PRIMARY }}>
+          <Text style={{ fontFamily: "outfit-bold", fontSize: 14, color: Colors.WHITE }}>
             Want a tailored curriculum?
           </Text>
-          <Text style={{ fontFamily: "outfit", fontSize: 11, color: "#3b82f6", marginTop: 2 }}>
+          <Text style={{ fontFamily: "outfit", fontSize: 11, color: "rgba(255, 255, 255, 0.72)", marginTop: 2 }}>
             Generate Course Based on Your Needs (Goal, Skill, Daily Time & Date)
           </Text>
         </View>
-        <Ionicons name="arrow-forward" size={16} color={Colors.PRIMARY} />
+        <View style={{ backgroundColor: Colors.LIME, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={{ fontFamily: "outfit-bold", fontSize: 11, color: Colors.BLACK }}>Build</Text>
+          <Ionicons name="arrow-forward" size={14} color={Colors.BLACK} />
+        </View>
       </TouchableOpacity>
 
       <Text style={{ fontFamily: "outfit", fontSize: 14, color: Colors.GRAY, marginTop: 5 }}>
@@ -193,7 +196,7 @@ export default function AddCourse() {
 
           <Button
             text={`Create Course (${selectedTopics.length} Topics)`}
-            type="fill"
+            type="lime"
             onPress={onCreateCourse}
             loading={creatingCourse}
           />

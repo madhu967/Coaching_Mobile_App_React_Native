@@ -349,7 +349,7 @@ Generate 5-7 focused, sequential topics matching their available study time and 
       <View style={{ marginTop: 10 }}>
         <Button
           text={generating ? "Designing Your Custom Course..." : "✨ Generate AI Personalized Learning Path"}
-          type="fill"
+          type="lime"
           onPress={handleGeneratePath}
           loading={generating}
         />

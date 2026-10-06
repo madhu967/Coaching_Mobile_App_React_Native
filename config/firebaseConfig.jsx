@@ -3,19 +3,26 @@ import {
   initializeAuth,
   getReactNativePersistence,
   getAuth,
-  Auth,
 } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore } from "firebase/firestore";
 
+const requiredEnv = (name) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not configured. Add it to your local environment.`);
+  }
+  return value;
+};
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: requiredEnv("EXPO_PUBLIC_FIREBASE_API_KEY"),
+  authDomain: requiredEnv("EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN"),
+  projectId: requiredEnv("EXPO_PUBLIC_FIREBASE_PROJECT_ID"),
+  storageBucket: requiredEnv("EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: requiredEnv("EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: requiredEnv("EXPO_PUBLIC_FIREBASE_APP_ID"),
+  measurementId: requiredEnv("EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID"),
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

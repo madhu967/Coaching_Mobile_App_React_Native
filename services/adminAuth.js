@@ -5,10 +5,9 @@ const ADMIN_STORAGE_KEY = "@admin_logged_in";
 export const getAdminCredentials = () => {
   const email = process.env.EXPO_PUBLIC_ADMIN_EMAIL;
   const password = process.env.EXPO_PUBLIC_ADMIN_PASSWORD;
-
   if (!email || !password) {
     throw new Error(
-      "Missing EXPO_PUBLIC_ADMIN_EMAIL or EXPO_PUBLIC_ADMIN_PASSWORD in .env file"
+      "Admin credentials are not configured. Add EXPO_PUBLIC_ADMIN_EMAIL and EXPO_PUBLIC_ADMIN_PASSWORD."
     );
   }
 

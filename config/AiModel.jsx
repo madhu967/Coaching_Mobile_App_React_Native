@@ -13,12 +13,12 @@ const responseCache = {};
 
 function getAIInstance() {
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-
   if (!apiKey) {
-    throw new Error("Missing EXPO_PUBLIC_GEMINI_API_KEY in .env file");
+    throw new Error(
+      "EXPO_PUBLIC_GEMINI_API_KEY is not configured. Add it to your local environment."
+    );
   }
 
-  console.log("🔑 Using Gemini API Key (ends with):", apiKey.slice(-6));
   return new GoogleGenAI({ apiKey });
 }
 
@@ -386,4 +386,3 @@ Rules:
 }
 
 export default generateContentWithAI;
-

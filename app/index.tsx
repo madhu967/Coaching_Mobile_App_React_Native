@@ -64,34 +64,42 @@ export default function Index() {
   const flatListRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && user.email) {
-        try {
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 2000)
-          );
-          const result = await Promise.race([
-            getDoc(doc(db, "users", user.email)),
-            timeoutPromise,
-          ]);
-          if (result && result.exists()) {
-            setUserDetail(result.data());
-          } else {
+    if (!auth) return;
+    let unsubscribe;
+    try {
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user && user.email) {
+          try {
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Timeout")), 2000)
+            );
+            const result = await Promise.race([
+              getDoc(doc(db, "users", user.email)),
+              timeoutPromise,
+            ]);
+            if (result && result.exists()) {
+              setUserDetail(result.data());
+            } else {
+              setUserDetail({
+                email: user.email,
+                name: user.displayName || user.email.split("@")[0],
+              });
+            }
+          } catch (e) {
             setUserDetail({
               email: user.email,
               name: user.displayName || user.email.split("@")[0],
             });
           }
-        } catch (e) {
-          setUserDetail({
-            email: user.email,
-            name: user.displayName || user.email.split("@")[0],
-          });
+          router.replace("/Home");
         }
-        router.replace("/Home");
-      }
-    });
-    return () => unsubscribe();
+      });
+    } catch (err) {
+      console.warn("Auth listener skipped:", err);
+    }
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
   }, []);
 
   const handleNextSlide = () => {

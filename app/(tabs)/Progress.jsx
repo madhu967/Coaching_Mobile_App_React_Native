@@ -11,11 +11,14 @@ import {
   Image,
   Switch,
   Dimensions,
+  Alert,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { UserDetailContext } from "../../context/UserDetailContext";
+import { auth } from "../../config/firebaseConfig";
+import { signOut } from "firebase/auth";
 import { getAllCourses, toggleTopicCompletion } from "../../services/courseStorage";
 import { getLmsStore } from "../../services/lmsStore";
 
@@ -23,7 +26,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function PerformanceScreen() {
   const router = useRouter();
-  const { userDetail } = useContext(UserDetailContext);
+  const { userDetail, setUserDetail } = useContext(UserDetailContext);
 
   const [courses, setCourses] = useState([]);
   const [lmsStore, setLmsStore] = useState(null);
@@ -105,6 +108,25 @@ export default function PerformanceScreen() {
 
   const userInitial = userName.charAt(0).toUpperCase();
 
+  const handleSignOut = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out of your account?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOut(auth);
+            if (setUserDetail) setUserDetail(null);
+            router.replace("/");
+          } catch (err) {
+            router.replace("/");
+          }
+        },
+      },
+    ]);
+  };
+
   // Performance calculations from LMS Store
   const perf = lmsStore?.performance || {
     courseCompletionPercent: 0,
@@ -155,6 +177,46 @@ export default function PerformanceScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ===============================================================
+          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, Name, Streak, PRO, Avatar & Logout)
+          =============================================================== */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.welcomeSub}>{greeting}</Text>
+          <Text style={styles.userNameText}>{userName}</Text>
+        </View>
+
+        <View style={styles.headerRightGroup}>
+          <View style={styles.streakPill}>
+            <Text style={styles.streakText}>🔥 {streakDays}d</Text>
+          </View>
+
+          <View style={styles.proBadge}>
+            <Text style={styles.proText}>PRO</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push("/Profile")}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{userInitial}</Text>
+            </View>
+            <View style={styles.activeLimeDot} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleSignOut}
+            style={styles.logoutNavBtn}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="log-out-outline" size={17} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -167,37 +229,6 @@ export default function PerformanceScreen() {
           />
         }
       >
-        {/* ===============================================================
-            1. TOP HEADER (Dynamic Greeting, Real Name, Streak, Attendance)
-            =============================================================== */}
-        <View style={styles.topHeader}>
-          <View>
-            <Text style={styles.welcomeSub}>{greeting}</Text>
-            <Text style={styles.userNameText}>{userName}</Text>
-          </View>
-
-          <View style={styles.headerRightGroup}>
-            <View style={styles.streakPill}>
-              <Text style={styles.streakText}>🔥 {streakDays}d Streak</Text>
-            </View>
-
-            <View style={styles.proBadge}>
-              <Text style={styles.proText}>PRO</Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => router.push("/Profile")}
-              activeOpacity={0.8}
-              style={styles.avatarWrapper}
-            >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitial}>{userInitial}</Text>
-              </View>
-              <View style={styles.activeLimeDot} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* ===============================================================
             2. DISPLAY TITLE (REAL COACHING DATA: Academic Standing & Mastered %)
             =============================================================== */}
@@ -564,21 +595,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
+    paddingTop: 20,
     paddingBottom: 110,
   },
 
-  /* Top Header */
+  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
   topHeader: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8E62E",
   },
   welcomeSub: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.MUTED,
+    color: "rgba(13, 13, 13, 0.72)",
   },
   userNameText: {
     fontFamily: "outfit-bold",
@@ -597,7 +634,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: "rgba(13, 13, 13, 0.08)",
   },
   streakText: {
     fontFamily: "outfit-bold",
@@ -621,18 +658,18 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.WHITE,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: Colors.BLACK,
   },
   avatarInitial: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.BLACK,
   },
   activeLimeDot: {
@@ -642,9 +679,19 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.LIME,
+    backgroundColor: "#16A34A",
     borderWidth: 2,
     borderColor: Colors.WHITE,
+  },
+  logoutNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.WHITE,
+    borderWidth: 1,
+    borderColor: "rgba(13, 13, 13, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   /* Display Headings */

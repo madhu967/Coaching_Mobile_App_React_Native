@@ -102,33 +102,33 @@ const Profile = () => {
 
   return (
     <View style={styles.container}>
+      {/* ===============================================================
+          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Dynamic Greeting, PRO Badge, Sign Out Icon)
+          =============================================================== */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.welcomeSub}>{greeting}</Text>
+          <Text style={styles.userNameText}>{userName}</Text>
+        </View>
+
+        <View style={styles.headerRightGroup}>
+          <View style={styles.proBadge}>
+            <Text style={styles.proText}>PRO</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleSignOut}
+            style={styles.signOutHeaderBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ===============================================================
-            1. TOP HEADER (Dynamic Greeting, PRO Badge, Sign Out Icon)
-            =============================================================== */}
-        <View style={styles.topHeader}>
-          <View>
-            <Text style={styles.welcomeSub}>{greeting}</Text>
-            <Text style={styles.userNameText}>{userName}</Text>
-          </View>
-
-          <View style={styles.headerRightGroup}>
-            <View style={styles.proBadge}>
-              <Text style={styles.proText}>PRO</Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleSignOut}
-              style={styles.signOutHeaderBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* ===============================================================
             2. DISPLAY TITLE ("Academic Account / Scholar Profile")
             =============================================================== */}
@@ -345,21 +345,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
+    paddingTop: 20,
     paddingBottom: 110,
   },
 
-  /* Top Header */
+  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
   topHeader: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8E62E",
   },
   welcomeSub: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.MUTED,
+    color: "rgba(13, 13, 13, 0.72)",
   },
   userNameText: {
     fontFamily: "outfit-bold",
@@ -385,12 +391,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   signOutHeaderBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#FEF2F2",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.WHITE,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(13, 13, 13, 0.12)",
   },
 
   /* Display Headings */

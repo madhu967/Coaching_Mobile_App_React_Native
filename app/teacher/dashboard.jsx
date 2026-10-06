@@ -472,6 +472,46 @@ export default function TeacherDashboard() {
 
   return (
     <View style={styles.container}>
+      {/* ===============================================================
+          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, Teacher Name, Streak, FACULTY Badge, Avatar & Logout)
+          =============================================================== */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.welcomeSub}>{greeting}</Text>
+          <Text style={styles.userNameText}>{teacherName}</Text>
+        </View>
+
+        <View style={styles.headerRightGroup}>
+          <View style={styles.streakPill}>
+            <Text style={styles.streakPillText}>⚡ Studio Live</Text>
+          </View>
+
+          <View style={styles.proBadge}>
+            <Text style={styles.proText}>FACULTY</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleTeacherLogout}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{teacherInitial}</Text>
+            </View>
+            {/* Active Indicator Dot */}
+            <View style={styles.activeLimeDot} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.logoutNavBtn}
+            onPress={handleTeacherLogout}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -484,38 +524,6 @@ export default function TeacherDashboard() {
           />
         }
       >
-        {/* ===============================================================
-            1. TOP HEADER (Good morning, Teacher Name, Streak, FACULTY Badge, Avatar with Lime Dot)
-            =============================================================== */}
-        <View style={styles.topHeader}>
-          <View>
-            <Text style={styles.welcomeSub}>{greeting}</Text>
-            <Text style={styles.userNameText}>{teacherName}</Text>
-          </View>
-
-          <View style={styles.headerRightGroup}>
-            <View style={styles.streakPill}>
-              <Text style={styles.streakPillText}>⚡ Studio Live</Text>
-            </View>
-
-            <View style={styles.proBadge}>
-              <Text style={styles.proText}>FACULTY</Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleTeacherLogout}
-              activeOpacity={0.8}
-              style={styles.avatarWrapper}
-            >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitial}>{teacherInitial}</Text>
-              </View>
-              {/* Electric Lime Active Indicator Dot */}
-              <View style={styles.activeLimeDot} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* ===============================================================
             2. DISPLAY TITLE ("Faculty Dashboard / Academic Studio ⁽⁴⁾")
             =============================================================== */}
@@ -1650,7 +1658,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
+    paddingTop: 20,
     paddingBottom: 110,
   },
   centerBox: {
@@ -1660,17 +1668,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.BG_LIGHT,
   },
 
-  /* Top Header */
+  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
   topHeader: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8E62E",
   },
   welcomeSub: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.MUTED,
+    color: "rgba(13, 13, 13, 0.72)",
   },
   userNameText: {
     fontFamily: "outfit-bold",
@@ -1689,7 +1703,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: "rgba(13, 13, 13, 0.08)",
   },
   streakPillText: {
     fontFamily: "outfit-bold",
@@ -1720,7 +1734,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: Colors.BLACK,
   },
   avatarInitial: {
     fontFamily: "outfit-bold",
@@ -1734,9 +1748,20 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.LIME,
+    backgroundColor: "#16A34A",
     borderWidth: 2,
     borderColor: Colors.WHITE,
+  },
+  logoutNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(13, 13, 13, 0.12)",
+    marginLeft: 2,
   },
 
   /* Display Headings */

@@ -409,38 +409,6 @@ export default function AdminDashboard() {
       }
     >
       {/* ===============================================================
-          1. TOP HEADER (Good morning, Admin Name, Streak, ADMIN Badge, Avatar with Lime Dot)
-          =============================================================== */}
-      <View style={styles.topHeaderGroup}>
-        <View>
-          <Text style={styles.welcomeSub}>{greeting}</Text>
-          <Text style={styles.userNameText}>{adminName}</Text>
-        </View>
-
-        <View style={styles.headerRightGroup}>
-          <View style={styles.streakPill}>
-            <Text style={styles.streakPillText}>⚡ Platform Live</Text>
-          </View>
-
-          <View style={styles.proBadge}>
-            <Text style={styles.proText}>ADMIN</Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleAdminLogout}
-            activeOpacity={0.8}
-            style={styles.avatarWrapper}
-          >
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitial}>A</Text>
-            </View>
-            {/* Electric Lime Active Indicator Dot */}
-            <View style={styles.activeLimeDot} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ===============================================================
           2. DISPLAY TITLE ("Admin Dashboard / Institutional Hub ⁽¹²⁾")
           =============================================================== */}
       <View style={styles.headingSection}>
@@ -1125,8 +1093,44 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.mainContainer}>
-      {/* Top Header for sub-tabs */}
-      {activeTab !== "overview" && (
+      {/* Full-bleed Top Header Navbar */}
+      {activeTab === "overview" ? (
+        <View style={styles.topHeaderGroup}>
+          <View>
+            <Text style={styles.welcomeSub}>{greeting}</Text>
+            <Text style={styles.userNameText}>{adminName}</Text>
+          </View>
+
+          <View style={styles.headerRightGroup}>
+            <View style={styles.streakPill}>
+              <Text style={styles.streakPillText}>⚡ Platform Live</Text>
+            </View>
+
+            <View style={styles.proBadge}>
+              <Text style={styles.proText}>ADMIN</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleAdminLogout}
+              activeOpacity={0.8}
+              style={styles.avatarWrapper}
+            >
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarInitial}>A</Text>
+              </View>
+              <View style={styles.activeLimeDot} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutNavBtn}
+              onPress={handleAdminLogout}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
         <View style={styles.topHeader}>
           <TouchableOpacity
             style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
@@ -1149,8 +1153,8 @@ export default function AdminDashboard() {
               <Text style={styles.subTabSubtitle}>Institutional Admin</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutTopBtn} onPress={handleAdminLogout} activeOpacity={0.7}>
-            <Ionicons name="log-out-outline" size={20} color={Colors.BLACK} />
+          <TouchableOpacity style={styles.logoutNavBtn} onPress={handleAdminLogout} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={18} color="#DC2626" />
           </TouchableOpacity>
         </View>
       )}
@@ -1330,21 +1334,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.BG_LIGHT,
   },
   topHeader: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
-    paddingBottom: 14,
-    backgroundColor: Colors.WHITE,
+    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+    paddingBottom: 16,
+    backgroundColor: Colors.LIME,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_LIGHT,
+    borderBottomColor: "#B8E62E",
   },
   subTabBackCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.CHIP_BG,
+    backgroundColor: Colors.WHITE,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1356,20 +1361,26 @@ const styles = StyleSheet.create({
   subTabSubtitle: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: Colors.GRAY,
+    color: "rgba(13, 13, 13, 0.72)",
   },
 
-  /* Student UI Signature Top Header & Controls */
+  /* Student UI Signature Top Header & Controls — Full-bleed edge-to-edge UI Theme Background */
   topHeaderGroup: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8E62E",
   },
   welcomeSub: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.MUTED,
+    color: "rgba(13, 13, 13, 0.72)",
   },
   userNameText: {
     fontFamily: "outfit-bold",
@@ -1388,7 +1399,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: "rgba(13, 13, 13, 0.08)",
   },
   streakPillText: {
     fontFamily: "outfit-bold",
@@ -1419,7 +1430,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: Colors.BORDER_LIGHT,
+    borderColor: Colors.BLACK,
   },
   avatarInitial: {
     fontFamily: "outfit-bold",
@@ -1433,9 +1444,20 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.LIME,
+    backgroundColor: "#16A34A",
     borderWidth: 2,
     borderColor: Colors.WHITE,
+  },
+  logoutNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(13, 13, 13, 0.12)",
+    marginLeft: 2,
   },
 
   /* Display Headings */

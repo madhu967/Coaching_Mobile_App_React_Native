@@ -27,7 +27,7 @@ const SignUp = () => {
             console.log(user);
             await SaveUser(user);
             setLoading(false);
-            router.replace('/(tabs)/Home');
+            router.replace('/Home');
         }).catch((error)=>{
             const errorCode=error.code;
             const errorMessage=error.message;

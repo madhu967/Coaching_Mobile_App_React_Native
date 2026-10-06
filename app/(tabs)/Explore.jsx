@@ -270,7 +270,7 @@ const Explore = () => {
             <Button
               text={"+ Quick AI Course"}
               type="outline"
-              onPress={() => router.push("/AddCourse")}
+              onPress={() => router.push("/addCourse")}
             />
           </View>
         </View>

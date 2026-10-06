@@ -169,7 +169,7 @@ Generate 5-7 focused, sequential topics matching their available study time and 
         [
           {
             text: "Go to Explore",
-            onPress: () => router.push("/(tabs)/Explore"),
+            onPress: () => router.push("/Explore"),
           },
         ]
       );

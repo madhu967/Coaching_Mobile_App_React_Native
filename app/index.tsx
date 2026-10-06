@@ -33,7 +33,7 @@ export default function Index() {
         } catch (e) {
           setUserDetail({ email: user.email, name: user.displayName || user.email.split("@")[0] });
         }
-        router.replace('/(tabs)/Home');
+        router.replace('/Home');
       }
     });
     return () => unsubscribe();

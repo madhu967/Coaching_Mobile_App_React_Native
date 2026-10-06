@@ -80,7 +80,7 @@ export default function AddCourse() {
       setUserInput("");
       setTopics([]);
       setSelectedTopics([]);
-      router.replace("/(tabs)/Explore");
+      router.replace("/Explore");
     } catch (saveErr) {
       console.error("Error creating course:", saveErr);
       alert("Failed to save course. Please try again.");

@@ -22,11 +22,11 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 let auth;
 try {
-  auth = getAuth(app);
-} catch (error) {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(ReactNativeAsyncStorage),
   });
+} catch (error) {
+  auth = getAuth(app);
 }
 
 export { auth };

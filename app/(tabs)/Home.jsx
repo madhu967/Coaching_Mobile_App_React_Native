@@ -114,6 +114,7 @@ export default function Home() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
         }
+      >
         {/* Unique Feature Hero Banner: Create Course Based on Needs */}
         <TouchableOpacity
           style={styles.needsHeroCard}
@@ -203,7 +204,7 @@ export default function Home() {
               <Ionicons name="trending-up" size={18} color={Colors.PRIMARY} />
               <Text style={styles.dashCardTitle}>Current Course Progress</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/Progress")}>
+            <TouchableOpacity onPress={() => router.push("/Progress")}>
               <Text style={styles.dashCardLink}>Manage</Text>
             </TouchableOpacity>
           </View>

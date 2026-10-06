@@ -26,8 +26,7 @@ const Signin = () => {
             await getUserDetail();
             ToastAndroid.show("Sign in successful!", ToastAndroid.SHORT); 
             setLoading(false);
-            router.replace('/(tabs)/Home');
-            // router.push('/home');
+            router.replace('/Home');
         }).catch((error)=>{         
             const errorCode=error.code;
             const errorMessage=error.message;

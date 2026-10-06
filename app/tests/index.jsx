@@ -6,16 +6,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  StatusBar,
   RefreshControl,
   ScrollView,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
+import { useTheme } from "../../context/ThemeContext";
 import { getLmsStore } from "../../services/lmsStore";
 
 export default function TestsListScreen() {
   const router = useRouter();
+  const { themeMode } = useTheme();
+  const styles = React.useMemo(() => getStyles(), [themeMode]);
   const [tests, setTests] = useState([]);
   const [filter, setFilter] = useState("all"); // 'all' | 'Mock Test' | 'Subject Test' | 'Practice Drill'
   const [refreshing, setRefreshing] = useState(false);
@@ -58,10 +62,14 @@ export default function TestsListScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={Colors.PRIMARY} />
-          <Text style={styles.backBtnText}>Back</Text>
+          <Ionicons name="arrow-back" size={18} color={Colors.BLACK} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tests & Assessments</Text>
+        <View style={{ flex: 1, marginHorizontal: 12 }}>
+          <Text style={styles.headerSub}>Timed Evaluations</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            Tests & Assessments
+          </Text>
+        </View>
         <View style={styles.completedBadge}>
           <Text style={styles.completedBadgeText}>
             {completedCount}/{tests.length} Done
@@ -70,28 +78,34 @@ export default function TestsListScreen() {
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filterRow}>
-        {[
-          { key: "all", label: "All Tests" },
-          { key: "Mock Test", label: "Mock Tests" },
-          { key: "Subject Test", label: "Subject Tests" },
-          { key: "Practice Drill", label: "Practice Drills" },
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            onPress={() => setFilter(tab.key)}
-            style={[styles.filterTab, filter === tab.key && styles.filterTabActive]}
-          >
-            <Text
-              style={[
-                styles.filterTabText,
-                filter === tab.key && styles.filterTabTextActive,
-              ]}
+      <View style={{ paddingVertical: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {[
+            { key: "all", label: "All Tests" },
+            { key: "Mock Test", label: "Mock Tests" },
+            { key: "Subject Test", label: "Subject Tests" },
+            { key: "Practice Drill", label: "Practice Drills" },
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setFilter(tab.key)}
+              style={[styles.filterTab, filter === tab.key && styles.filterTabActive]}
             >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.filterTabText,
+                  filter === tab.key && styles.filterTabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <FlatList
@@ -99,7 +113,7 @@ export default function TestsListScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.PRIMARY]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.BLACK]} />
         }
         renderItem={({ item }) => {
           const score = item.recentScore;
@@ -199,173 +213,190 @@ export default function TestsListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.WHITE,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 35,
-    paddingBottom: 12,
-    backgroundColor: Colors.WHITE,
-    borderBottomWidth: 1,
-    borderBottomColor: "#edf2f7",
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  backBtnText: {
-    fontFamily: "outfit-bold",
-    color: Colors.PRIMARY,
-    fontSize: 14,
-  },
-  headerTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: "#1e293b",
-  },
-  completedBadge: {
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  completedBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: "#16a34a",
-  },
-  filterRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.WHITE,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  filterTabActive: {
-    backgroundColor: Colors.PRIMARY,
-    borderColor: Colors.PRIMARY,
-  },
-  filterTabText: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: "#475569",
-  },
-  filterTabTextActive: {
-    color: Colors.WHITE,
-    fontFamily: "outfit-bold",
-  },
-  testCard: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#edf2f7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-  },
-  testCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  typeBadge: {
-    backgroundColor: "#eff6ff",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  typeBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: Colors.PRIMARY,
-  },
-  scoreBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-  },
-  scoreBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: "#16a34a",
-  },
-  pendingBadge: {
-    backgroundColor: "#f1f5f9",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  pendingBadgeText: {
-    fontFamily: "outfit",
-    fontSize: 11,
-    color: Colors.GRAY,
-  },
-  testTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 16,
-    color: "#1e293b",
-    marginBottom: 2,
-  },
-  testSubject: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: Colors.GRAY,
-    marginBottom: 12,
-  },
-  testMetaGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-    backgroundColor: "#f8fafc",
-    padding: 10,
-    borderRadius: 10,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaItemText: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: "#475569",
-  },
-  startTestBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.PRIMARY,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-  },
-  startTestBtnText: {
-    fontFamily: "outfit-bold",
-    fontSize: 14,
-    color: Colors.WHITE,
-  },
-});
+const getStyles = () =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.BG_LIGHT,
+    },
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingTop:
+        Platform.OS === "ios"
+          ? 52
+          : StatusBar.currentHeight
+          ? StatusBar.currentHeight + 12
+          : 42,
+      paddingBottom: 14,
+      backgroundColor: Colors.NAVBAR_BG,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.NAVBAR_BORDER,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.12)",
+    },
+    headerSub: {
+      fontFamily: "outfit",
+      fontSize: 11.5,
+      color: Colors.ON_NAVBAR_SUB,
+    },
+    headerTitle: {
+      fontFamily: "outfit-bold",
+      fontSize: 17,
+      color: Colors.ON_NAVBAR || Colors.BLACK,
+      marginTop: 1,
+    },
+    completedBadge: {
+      backgroundColor: Colors.WHITE,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.08)",
+    },
+    completedBadgeText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: "#16a34a",
+    },
+    filterRow: {
+      flexDirection: "row",
+      paddingHorizontal: 20,
+      gap: 8,
+    },
+    filterTab: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: Colors.WHITE,
+      borderWidth: 1,
+      borderColor: Colors.BORDER_LIGHT,
+    },
+    filterTabActive: {
+      backgroundColor: Colors.BLACK,
+      borderColor: Colors.BLACK,
+    },
+    filterTabText: {
+      fontFamily: "outfit-bold",
+      fontSize: 12,
+      color: Colors.GRAY,
+    },
+    filterTabTextActive: {
+      color: Colors.WHITE,
+      fontFamily: "outfit-bold",
+    },
+    testCard: {
+      backgroundColor: Colors.WHITE,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: Colors.BORDER_LIGHT,
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+    },
+    testCardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 10,
+    },
+    typeBadge: {
+      backgroundColor: Colors.LIME_LIGHT,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    typeBadgeText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: Colors.BLACK,
+    },
+    scoreBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#f0fdf4",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      gap: 4,
+    },
+    scoreBadgeText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: "#16a34a",
+    },
+    pendingBadge: {
+      backgroundColor: "#f1f5f9",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    pendingBadgeText: {
+      fontFamily: "outfit",
+      fontSize: 11,
+      color: Colors.GRAY,
+    },
+    testTitle: {
+      fontFamily: "outfit-bold",
+      fontSize: 16.5,
+      color: Colors.BLACK,
+      marginBottom: 3,
+    },
+    testSubject: {
+      fontFamily: "outfit",
+      fontSize: 13,
+      color: Colors.GRAY,
+      marginBottom: 12,
+    },
+    testMetaGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      marginBottom: 16,
+      backgroundColor: Colors.BG_LIGHT,
+      padding: 12,
+      borderRadius: 12,
+    },
+    metaItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    metaItemText: {
+      fontFamily: "outfit",
+      fontSize: 12,
+      color: Colors.BLACK,
+    },
+    startTestBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: Colors.BLACK,
+      paddingVertical: 12,
+      borderRadius: 14,
+      gap: 6,
+    },
+    startTestBtnText: {
+      fontFamily: "outfit-bold",
+      fontSize: 14,
+      color: Colors.WHITE,
+    },
+  });
+

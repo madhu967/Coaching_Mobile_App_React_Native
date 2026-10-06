@@ -14,10 +14,12 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
+import { useTheme } from "../../context/ThemeContext";
 import Button from "../../components/Shared/Button";
 import {
   getLmsStore,
@@ -32,6 +34,7 @@ import {
   getLoggedInTeacher,
   logoutTeacher,
 } from "../../services/teacherAuth";
+import { generateTestQuestionsWithAI } from "../../config/AiModel";
 import { db } from "../../config/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 
@@ -79,9 +82,12 @@ const TEACHER_SLIDES = [
 
 export default function TeacherDashboard() {
   const router = useRouter();
+  const { themeMode, isIndigo, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(), [themeMode]);
 
-  // Teacher Tabs: 'classes' | 'courses' | 'tests' | 'assignments' | 'students'
-  const [tab, setTab] = useState("classes");
+  // Teacher Tabs: 'overview' | 'classes' | 'assignments' | 'tests' | 'attendance' | 'students'
+  const [tab, setTab] = useState("overview");
+  const [showMoreModal, setShowMoreModal] = useState(false);
   const [store, setStore] = useState(null);
   const [teacherProfile, setTeacherProfile] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,12 +124,28 @@ export default function TeacherDashboard() {
   const [newAsnDeadline, setNewAsnDeadline] = useState("");
   const [newAsnMarks, setNewAsnMarks] = useState("20");
 
-  // Create Test Modal
+  // Create Test Modal + Question Upload & Gemini AI Question Generation
   const [showCreateTestModal, setShowCreateTestModal] = useState(false);
   const [newTestTitle, setNewTestTitle] = useState("");
   const [newTestSubject, setNewTestSubject] = useState("");
   const [newTestDuration, setNewTestDuration] = useState("15");
   const [newTestPassMarks, setNewTestPassMarks] = useState("2");
+  const [testQuestions, setTestQuestions] = useState([]);
+  const [aiTopicPrompt, setAiTopicPrompt] = useState("");
+  const [aiQuestionCount, setAiQuestionCount] = useState(5);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [publishingTest, setPublishingTest] = useState(false);
+
+  // Manual Question Upload Form State
+  const [showManualQForm, setShowManualQForm] = useState(false);
+  const [manualQText, setManualQText] = useState("");
+  const [manualOptA, setManualOptA] = useState("");
+  const [manualOptB, setManualOptB] = useState("");
+  const [manualOptC, setManualOptC] = useState("");
+  const [manualOptD, setManualOptD] = useState("");
+  const [manualCorrectIdx, setManualCorrectIdx] = useState(0);
+  const [manualExplanation, setManualExplanation] = useState("");
+  const [expandedTestId, setExpandedTestId] = useState(null);
 
   // Teacher Roll-Call Attendance Modal (For Classes & Tests)
   const [selectedClassForRollCall, setSelectedClassForRollCall] = useState(null);
@@ -379,29 +401,136 @@ export default function TeacherDashboard() {
     loadData();
   };
 
+  const handleGenerateQuestionsWithAI = async () => {
+    const titleVal = newTestTitle.trim() || aiTopicPrompt.trim() || "Assessment Test";
+    const subjectVal = newTestSubject.trim() || aiTopicPrompt.trim() || "Computer Science";
+    const topicVal = aiTopicPrompt.trim() || `${titleVal} (${subjectVal})`;
+
+    if (!newTestTitle.trim() && !newTestSubject.trim() && !aiTopicPrompt.trim()) {
+      Alert.alert(
+        "Enter Topic or Title",
+        "Please enter a Test Title, Subject, or AI Topic Prompt so Gemini AI knows what questions to generate."
+      );
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const generated = await generateTestQuestionsWithAI({
+        title: titleVal,
+        subject: subjectVal,
+        topic: topicVal,
+        count: aiQuestionCount,
+      });
+
+      if (Array.isArray(generated) && generated.length > 0) {
+        setTestQuestions((prev) => [...prev, ...generated]);
+        Alert.alert(
+          "Gemini AI Questions Ready! ✨",
+          `Generated and added ${generated.length} MCQ questions on "${topicVal}". Review them below before posting!`
+        );
+      }
+    } catch (err) {
+      Alert.alert("AI Error", "Could not generate questions right now. Try again.");
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAddManualQuestion = () => {
+    if (!manualQText.trim()) {
+      Alert.alert("Missing Question", "Please enter the question text.");
+      return;
+    }
+    if (!manualOptA.trim() || !manualOptB.trim()) {
+      Alert.alert("Missing Options", "Please enter at least Option A and Option B.");
+      return;
+    }
+
+    const options = [
+      manualOptA.trim(),
+      manualOptB.trim(),
+      manualOptC.trim() || "None of the above",
+      manualOptD.trim() || "All of the above",
+    ];
+
+    const newQ = {
+      id: "manual-q-" + Date.now(),
+      question: manualQText.trim(),
+      options,
+      correctIndex: manualCorrectIdx,
+      explanation:
+        manualExplanation.trim() ||
+        `Correct Answer: Option ${String.fromCharCode(65 + manualCorrectIdx)} (${options[manualCorrectIdx]}).`,
+    };
+
+    setTestQuestions((prev) => [...prev, newQ]);
+    setManualQText("");
+    setManualOptA("");
+    setManualOptB("");
+    setManualOptC("");
+    setManualOptD("");
+    setManualCorrectIdx(0);
+    setManualExplanation("");
+    setShowManualQForm(false);
+  };
+
+  const handleRemoveTestQuestion = (qId) => {
+    setTestQuestions((prev) => prev.filter((q) => q.id !== qId));
+  };
+
   const handleCreateTest = async () => {
     if (!newTestTitle.trim() || !newTestSubject.trim()) {
       Alert.alert("Missing Fields", "Please enter test title and subject.");
       return;
     }
 
-    await createTest({
-      title: newTestTitle.trim(),
-      subject: newTestSubject.trim(),
-      durationMinutes: parseInt(newTestDuration) || 15,
-      passMarks: parseInt(newTestPassMarks) || 2,
-      type: "Mock Test",
-      scheduledDate: "Today, Open until 11:59 PM",
-    });
+    setPublishingTest(true);
+    try {
+      let finalQuestions = [...testQuestions];
 
-    Alert.alert(
-      "Test Published! ⏱️",
-      "Test created! Students who do not attempt/attend this test are automatically marked Absent for it."
-    );
-    setShowCreateTestModal(false);
-    setNewTestTitle("");
-    setNewTestSubject("");
-    loadData();
+      // If teacher didn't manually upload or pre-generate questions yet, auto-generate with Gemini AI on post
+      if (finalQuestions.length === 0) {
+        finalQuestions = await generateTestQuestionsWithAI({
+          title: newTestTitle.trim(),
+          subject: newTestSubject.trim(),
+          topic: aiTopicPrompt.trim() || newTestTitle.trim(),
+          count: aiQuestionCount || 5,
+        });
+      }
+
+      const passVal = Math.min(
+        finalQuestions.length,
+        Math.max(1, parseInt(newTestPassMarks) || Math.ceil(finalQuestions.length * 0.5))
+      );
+
+      await createTest({
+        title: newTestTitle.trim(),
+        subject: newTestSubject.trim(),
+        durationMinutes: parseInt(newTestDuration) || 15,
+        passMarks: passVal,
+        type: "Mock Test",
+        scheduledDate: "Today, Open until 11:59 PM",
+        questions: finalQuestions,
+        totalQuestions: finalQuestions.length,
+      });
+
+      Alert.alert(
+        "Test Posted Successfully! ⏱️",
+        `Published "${newTestTitle.trim()}" with ${finalQuestions.length} questions! Students can now attempt this test.`
+      );
+      setShowCreateTestModal(false);
+      setNewTestTitle("");
+      setNewTestSubject("");
+      setAiTopicPrompt("");
+      setTestQuestions([]);
+      setShowManualQForm(false);
+      loadData();
+    } catch (e) {
+      Alert.alert("Error", "Could not publish test.");
+    } finally {
+      setPublishingTest(false);
+    }
   };
 
   const handleCreateAssignment = async () => {
@@ -470,47 +599,139 @@ export default function TeacherDashboard() {
     (store?.assignments?.length || 0) +
     (store?.tests?.length || 0);
 
+  const getActivePageHeaderMeta = () => {
+    switch (tab) {
+      case "classes":
+        return {
+          title: "Live Classes Studio",
+          subtitle: `${store.classes.length} Scheduled Sessions • Roll Call`,
+        };
+      case "assignments":
+        return {
+          title: "Assignments Desk",
+          subtitle: `${store.assignments.length} Homework & Grading Tasks`,
+        };
+      case "tests":
+        return {
+          title: "Tests & Assessments",
+          subtitle: `${store.tests.length} Timed Drills & Test Attendance`,
+        };
+      case "attendance":
+        return {
+          title: "Attendance Roll Call",
+          subtitle: `Combined: ${cohortAttendance}% • Class & Test Tracking`,
+        };
+      case "students":
+        return {
+          title: "Student Roster",
+          subtitle: `${enrolledStudents.length} Enrolled Scholars`,
+        };
+      default:
+        return {
+          title: "Faculty Studio",
+          subtitle: "Academic Portal",
+        };
+    }
+  };
+
+  const pageMeta = getActivePageHeaderMeta();
+
   return (
     <View style={styles.container}>
       {/* ===============================================================
-          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, Teacher Name, Streak, FACULTY Badge, Avatar & Logout)
+          1. TOP HEADER NAVBAR
+          - On "overview" (Home): Shows Greeting, Teacher Name, Live Pill, Theme Icon, Avatar & Logout
+          - On Sub-Pages: Shows Back Button, Page Title & Subtitle, Theme Icon & Logout
           =============================================================== */}
-      <View style={styles.topHeader}>
-        <View>
-          <Text style={styles.welcomeSub}>{greeting}</Text>
-          <Text style={styles.userNameText}>{teacherName}</Text>
-        </View>
-
-        <View style={styles.headerRightGroup}>
-          <View style={styles.streakPill}>
-            <Text style={styles.streakPillText}>⚡ Studio Live</Text>
+      {tab === "overview" ? (
+        <View style={styles.topHeader}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.welcomeSub} numberOfLines={1}>{greeting}</Text>
+            <Text style={styles.userNameText} numberOfLines={1}>{teacherName}</Text>
           </View>
 
-          <View style={styles.proBadge}>
-            <Text style={styles.proText}>FACULTY</Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleTeacherLogout}
-            activeOpacity={0.8}
-            style={styles.avatarWrapper}
-          >
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitial}>{teacherInitial}</Text>
+          <View style={styles.headerRightGroup}>
+            <View style={styles.streakPill}>
+              <Text style={styles.streakPillText}>⚡ Live</Text>
             </View>
-            {/* Active Indicator Dot */}
-            <View style={styles.activeLimeDot} />
-          </TouchableOpacity>
 
+            <TouchableOpacity
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+              style={styles.themeToggleBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="color-palette"
+                size={18}
+                color={Colors.BLACK}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleTeacherLogout}
+              activeOpacity={0.8}
+              style={styles.avatarWrapper}
+            >
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarInitial}>{teacherInitial}</Text>
+              </View>
+              <View style={styles.activeLimeDot} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutNavBtn}
+              onPress={handleTeacherLogout}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.topHeader}>
           <TouchableOpacity
-            style={styles.logoutNavBtn}
-            onPress={handleTeacherLogout}
+            style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10, marginRight: 8 }}
+            onPress={() => setTab("overview")}
             activeOpacity={0.75}
           >
-            <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+            <View style={styles.subTabBackCircle}>
+              <Ionicons name="arrow-back" size={18} color={Colors.BLACK} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.userNameText} numberOfLines={1}>
+                {pageMeta.title}
+              </Text>
+              <Text style={styles.welcomeSub} numberOfLines={1}>
+                {pageMeta.subtitle}
+              </Text>
+            </View>
           </TouchableOpacity>
+
+          <View style={styles.headerRightGroup}>
+            <TouchableOpacity
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+              style={styles.themeToggleBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="color-palette"
+                size={18}
+                color={Colors.BLACK}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutNavBtn}
+              onPress={handleTeacherLogout}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -525,262 +746,330 @@ export default function TeacherDashboard() {
         }
       >
         {/* ===============================================================
-            2. DISPLAY TITLE ("Faculty Dashboard / Academic Studio ⁽⁴⁾")
+            OVERVIEW (HOME) PAGE ONLY:
+            Display Title, Cohort Attendance, Roadmap, Image Slider & Quick Launch Dock
             =============================================================== */}
-        <View style={styles.headingSection}>
-          <Text style={styles.displaySubHeading}>Faculty Dashboard</Text>
-          <View style={styles.displayMainRow}>
-            <Text style={styles.displayMainHeading}>Academic Studio</Text>
-            <Text style={styles.superscriptBadge}>({totalActivitiesCount})</Text>
-          </View>
-        </View>
-
-        {/* ===============================================================
-            3. DATE, COHORT ATTENDANCE & SUBJECT/DESK ROADMAP TREE
-            =============================================================== */}
-        <View style={styles.dateAndRoadmapRow}>
-          {/* Left: Electric Lime Date Pill + Real Attendance % Display (0% if no session attended) */}
-          <View style={styles.dateBlock}>
-            <View style={styles.limeDatePill}>
-              <Text style={styles.limeDateText}>Cohort Attendance</Text>
+        {tab === "overview" && (
+          <View>
+            {/* 2. DISPLAY TITLE ("Faculty Dashboard / Academic Studio") */}
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Faculty Dashboard</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Academic Studio</Text>
+                <Text style={styles.superscriptBadge}>({totalActivitiesCount})</Text>
+              </View>
             </View>
-            <Text style={styles.giantDateNumber}>{cohortAttendance}%</Text>
-            <Text style={styles.attendanceMetaText}>
-              Classes: {classAttendancePercent}% • Tests: {testAttendancePercent}%
-            </Text>
-          </View>
 
-          {/* Right: Vertical Tree Roadmap Selector (Coaching App Faculty Desks) */}
-          <View style={styles.roadmapTreeContainer}>
-            <View style={styles.roadmapLine} />
-
-            {/* Branch 1 */}
-            <TouchableOpacity
-              style={styles.roadmapBranch}
-              onPress={() => setTab("classes")}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.roadmapDot,
-                  tab === "classes" && styles.roadmapDotActive,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.roadmapBranchText,
-                  tab === "classes" && styles.roadmapBranchTextActive,
-                ]}
-              >
-                Live Masterclass
-              </Text>
-            </TouchableOpacity>
-
-            {/* Branch 2 */}
-            <TouchableOpacity
-              style={styles.roadmapBranch}
-              onPress={() => setTab("assignments")}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.roadmapDot,
-                  tab === "assignments" && styles.roadmapDotActive,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.roadmapBranchText,
-                  tab === "assignments" && styles.roadmapBranchTextActive,
-                ]}
-              >
-                Assignment Desk
-              </Text>
-            </TouchableOpacity>
-
-            {/* Branch 3 */}
-            <TouchableOpacity
-              style={styles.roadmapBranch}
-              onPress={() => setTab("students")}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.roadmapDot,
-                  tab === "students" && styles.roadmapDotActive,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.roadmapBranchText,
-                  tab === "students" && styles.roadmapBranchTextActive,
-                ]}
-              >
-                Cohort Roster
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ===============================================================
-            4. FILTER PILLS ROW (Count icon, Active tab pill, + Quick Action)
-            =============================================================== */}
-        <View style={styles.filterPillRow}>
-          <TouchableOpacity
-            style={styles.filterIconBtn}
-            onPress={() => setTab("classes")}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="videocam-outline" size={17} color={Colors.BLACK} />
-            <View style={styles.filterLimeDot}>
-              <Text style={styles.filterLimeDotText}>{store.classes.length}</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.activeFilterPill}>
-            <Text style={styles.activeFilterText}>
-              {tab === "classes"
-                ? "Live Classes"
-                : tab === "assignments"
-                ? "Assignments"
-                : tab === "tests"
-                ? "Timed Tests"
-                : "Student Roster"}
-            </Text>
-            <Ionicons name="checkmark" size={13} color={Colors.BLACK} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.secondaryFilterPill}
-            onPress={() => setShowCreateClassModal(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="add" size={12} color={Colors.BLACK} />
-            <Text style={styles.secondaryFilterText}>Schedule Class</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ===============================================================
-            5. IMAGE SLIDER BANNER CAROUSEL (DEDICATED CAROUSEL)
-            =============================================================== */}
-        <View style={styles.sliderContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleTeacherSlideScroll}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.sliderScroll}
-            decelerationRate="fast"
-            snapToInterval={SLIDE_WIDTH + 14}
-            snapToAlignment="center"
-          >
-            {TEACHER_SLIDES.map((slide) => (
+            {/* 3. DATE, COHORT ATTENDANCE & SUBJECT/DESK ROADMAP TREE */}
+            <View style={styles.dateAndRoadmapRow}>
               <TouchableOpacity
-                key={slide.id}
-                style={styles.slideCard}
-                activeOpacity={0.92}
-                onPress={() => handleTeacherSlideAction(slide.action)}
+                style={styles.dateBlock}
+                activeOpacity={0.8}
+                onPress={() => setTab("attendance")}
               >
-                <View style={styles.slideLeftColumn}>
-                  <View style={styles.slideBadge}>
-                    <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
-                    <Text style={styles.slideBadgeText}>{slide.badge}</Text>
-                  </View>
-                  <Text style={styles.slideTitle} numberOfLines={2}>
-                    {slide.title}
-                  </Text>
-                  <Text style={styles.slideSubtitle} numberOfLines={2}>
-                    {slide.subtitle}
-                  </Text>
-                  <View style={styles.slideCtaBtn}>
-                    <Text style={styles.slideCtaText}>{slide.cta}</Text>
-                    <Ionicons name="arrow-forward" size={12} color={Colors.BLACK} />
-                  </View>
+                <View style={styles.limeDatePill}>
+                  <Text style={styles.limeDateText}>Cohort Attendance →</Text>
                 </View>
+                <Text style={styles.giantDateNumber}>{cohortAttendance}%</Text>
+                <Text style={styles.attendanceMetaText}>
+                  Classes: {classAttendancePercent}% • Tests: {testAttendancePercent}%
+                </Text>
+              </TouchableOpacity>
 
-                <View style={styles.slideRightColumn}>
-                  <Image
-                    source={{ uri: slide.image }}
-                    style={styles.slideTransparentImage}
-                    resizeMode="contain"
-                  />
+              <View style={styles.roadmapTreeContainer}>
+                <View style={styles.roadmapLine} />
+
+                <TouchableOpacity
+                  style={styles.roadmapBranch}
+                  onPress={() => setTab("classes")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.roadmapDot, styles.roadmapDotActive]} />
+                  <Text style={[styles.roadmapBranchText, styles.roadmapBranchTextActive]}>
+                    Live Masterclass
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.roadmapBranch}
+                  onPress={() => setTab("assignments")}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.roadmapDot} />
+                  <Text style={styles.roadmapBranchText}>Assignment Desk</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.roadmapBranch}
+                  onPress={() => setTab("students")}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.roadmapDot} />
+                  <Text style={styles.roadmapBranchText}>Cohort Roster</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 4. FILTER PILLS ROW */}
+            <View style={styles.filterPillRow}>
+              <TouchableOpacity
+                style={styles.filterIconBtn}
+                onPress={() => setTab("classes")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="videocam-outline" size={17} color={Colors.BLACK} />
+                <View style={styles.filterLimeDot}>
+                  <Text style={styles.filterLimeDotText}>{store.classes.length}</Text>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
 
-          <View style={styles.dotsRow}>
-            {TEACHER_SLIDES.map((_, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.dot,
-                  idx === activeSlideIndex && styles.activeDot,
-                ]}
-              />
-            ))}
+              <TouchableOpacity
+                style={styles.activeFilterPill}
+                onPress={() => setTab("attendance")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.activeFilterText}>Roll Call Hub</Text>
+                <Ionicons name="checkmark" size={13} color={Colors.BLACK} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryFilterPill}
+                onPress={() => setShowCreateClassModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={12} color={Colors.BLACK} />
+                <Text style={styles.secondaryFilterText}>Schedule Class</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 5. IMAGE SLIDER BANNER CAROUSEL (Aligned flush with left & right edges) */}
+            <View style={styles.sliderContainer}>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={handleTeacherSlideScroll}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.sliderScroll}
+                decelerationRate="fast"
+                snapToInterval={SLIDE_WIDTH + 14}
+                snapToAlignment="center"
+              >
+                {TEACHER_SLIDES.map((slide) => (
+                  <TouchableOpacity
+                    key={slide.id}
+                    style={styles.slideCard}
+                    activeOpacity={0.92}
+                    onPress={() => handleTeacherSlideAction(slide.action)}
+                  >
+                    <View style={styles.slideLeftColumn}>
+                      <Text style={styles.slideTitle} numberOfLines={2}>
+                        {slide.title}
+                      </Text>
+                      <Text style={styles.slideSubtitle} numberOfLines={2}>
+                        {slide.subtitle}
+                      </Text>
+                      <View style={styles.slideCtaBtn}>
+                        <Text style={styles.slideCtaText}>{slide.cta}</Text>
+                        <Ionicons
+                          name="arrow-forward"
+                          size={12}
+                          color={Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.slideRightColumn}>
+                      <Image
+                        source={{ uri: slide.image }}
+                        style={styles.slideTransparentImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.dotsRow}>
+                {TEACHER_SLIDES.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.dot,
+                      idx === activeSlideIndex && styles.activeDot,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* 6. FACULTY QUICK ACTION COMMAND DOCK (Aligned flush with left & right edges) */}
+            <View style={styles.quickLaunchDock}>
+              <TouchableOpacity
+                style={styles.dockTile}
+                onPress={() => setShowCreateClassModal(true)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: Colors.LIME_LIGHT }]}>
+                  <Ionicons name="videocam" size={16} color={Colors.BLACK} />
+                </View>
+                <Text style={styles.dockTileTitle}>+ Live Class</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dockTile}
+                onPress={() => setShowCreateTestModal(true)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: "#EFF6FF" }]}>
+                  <Ionicons name="timer" size={16} color="#2563EB" />
+                </View>
+                <Text style={styles.dockTileTitle}>+ New Test</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dockTile}
+                onPress={() => setShowCreateAsnModal(true)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: "#FFF7ED" }]}>
+                  <Ionicons name="document-text" size={16} color="#EA580C" />
+                </View>
+                <Text style={styles.dockTileTitle}>+ Assignment</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dockTile}
+                onPress={() => setTab("attendance")}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: "#F0FDF4" }]}>
+                  <Ionicons name="checkmark-done" size={16} color="#16A34A" />
+                </View>
+                <Text style={styles.dockTileTitle}>Roll Call</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 7. OVERVIEW SUMMARY SECTIONS */}
+            <View style={[styles.actionHeaderBar, { marginTop: 12 }]}>
+              <Text style={styles.tabHeading}>Today's Live Classes ({store.classes.length})</Text>
+              <TouchableOpacity onPress={() => setTab("classes")}>
+                <Text style={{ fontFamily: "outfit-bold", fontSize: 12.5, color: Colors.BLACK }}>
+                  Manage All →
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {store.classes.slice(0, 2).map((cls) => {
+              const isRollCallDone = Boolean(cls.rollCallCompleted);
+              const records = Array.isArray(cls.attendanceRecords) ? cls.attendanceRecords : [];
+              const presentCount = records.filter((r) => r.status === "Present").length;
+              const absentCount = records.filter((r) => r.status === "Absent").length;
+
+              return (
+                <TouchableOpacity
+                  key={cls.id}
+                  style={styles.cardItem}
+                  activeOpacity={0.9}
+                  onPress={() => handleOpenClassRollCall(cls)}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.classSubjectChip}>{cls.subject}</Text>
+                      <Text style={styles.cardItemTitle}>{cls.title}</Text>
+                      <Text style={styles.cardItemMeta}>⏰ {cls.time} • 📍 {cls.roomNumber}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.attendanceBadgeSmall,
+                        isRollCallDone
+                          ? { backgroundColor: "#F0FDF4" }
+                          : { backgroundColor: "#FEF2F2" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.attendanceBadgeText,
+                          { color: isRollCallDone ? "#16A34A" : "#DC2626" },
+                        ]}
+                      >
+                        {isRollCallDone ? `${presentCount}P / ${absentCount}A` : "Unmarked"}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.gradeActionBtn,
+                      {
+                        backgroundColor: isRollCallDone ? Colors.BLACK : Colors.LIME_BRIGHT,
+                        marginTop: 10,
+                      },
+                    ]}
+                    onPress={() => handleOpenClassRollCall(cls)}
+                  >
+                    <Ionicons
+                      name="people"
+                      size={14}
+                      color={isRollCallDone ? Colors.WHITE : Colors.ON_ACCENT}
+                    />
+                    <Text
+                      style={[
+                        styles.gradeActionBtnText,
+                        { color: isRollCallDone ? Colors.WHITE : Colors.ON_ACCENT },
+                      ]}
+                    >
+                      {isRollCallDone ? "Update Class Attendance" : "Mark Present / Absent"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            })}
+
+            <View style={[styles.actionHeaderBar, { marginTop: 10 }]}>
+              <Text style={styles.tabHeading}>Quick Module Access</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+              <TouchableOpacity
+                style={[styles.cardItem, { flex: 1, marginBottom: 0 }]}
+                onPress={() => setTab("assignments")}
+              >
+                <Ionicons name="document-text" size={20} color="#EA580C" />
+                <Text style={[styles.cardItemTitle, { marginTop: 6, fontSize: 14 }]}>
+                  Assignments ({store.assignments.length})
+                </Text>
+                <Text style={styles.cardItemMeta}>Grade student work</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cardItem, { flex: 1, marginBottom: 0 }]}
+                onPress={() => setTab("tests")}
+              >
+                <Ionicons name="timer" size={20} color="#2563EB" />
+                <Text style={[styles.cardItemTitle, { marginTop: 6, fontSize: 14 }]}>
+                  Timed Tests ({store.tests.length})
+                </Text>
+                <Text style={styles.cardItemMeta}>Drills & attendance</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* ===============================================================
-            6. FACULTY QUICK ACTION COMMAND DOCK
-            =============================================================== */}
-        <View style={styles.quickLaunchDock}>
-          <TouchableOpacity
-            style={styles.dockTile}
-            onPress={() => setShowCreateClassModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.dockIconCircle, { backgroundColor: Colors.LIME_LIGHT }]}>
-              <Ionicons name="videocam" size={16} color={Colors.BLACK} />
-            </View>
-            <Text style={styles.dockTileTitle}>+ Live Class</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dockTile}
-            onPress={() => setShowCreateTestModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.dockIconCircle, { backgroundColor: "#EFF6FF" }]}>
-              <Ionicons name="timer" size={16} color="#2563EB" />
-            </View>
-            <Text style={styles.dockTileTitle}>+ New Test</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dockTile}
-            onPress={() => setShowCreateAsnModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.dockIconCircle, { backgroundColor: "#FFF7ED" }]}>
-              <Ionicons name="document-text" size={16} color="#EA580C" />
-            </View>
-            <Text style={styles.dockTileTitle}>+ Assignment</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dockTile}
-            onPress={() => setTab("students")}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.dockIconCircle, { backgroundColor: "#F0FDF4" }]}>
-              <Ionicons name="people" size={16} color="#16A34A" />
-            </View>
-            <Text style={styles.dockTileTitle}>Roll Call</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ===============================================================
-            7. TAB CONTENT (Classes / Assignments / Tests / Students Roster)
+            DEDICATED SUB-PAGES (Classes / Assignments / Tests / Attendance / Students)
             =============================================================== */}
         {tab === "classes" && (
           <View style={styles.tabContentWrapper}>
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Faculty Studio</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Live Classes</Text>
+                <Text style={styles.superscriptBadge}>({store.classes.length})</Text>
+              </View>
+            </View>
             <View style={styles.actionHeaderBar}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={styles.tabHeading}>
-                  Today's & Scheduled Classes ({store.classes.length})
+                  Today's & Scheduled Classes
                 </Text>
                 <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.MUTED, marginTop: 2 }}>
                   Select a class → Mark enrolled students Present / Absent → Save
@@ -943,6 +1232,14 @@ export default function TeacherDashboard() {
 
         {tab === "assignments" && (
           <View style={styles.tabContentWrapper}>
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Homework & Evaluation</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Assignments Desk</Text>
+                <Text style={styles.superscriptBadge}>/{store.assignments.length}</Text>
+              </View>
+            </View>
+
             <View style={styles.actionHeaderBar}>
               <Text style={styles.tabHeading}>Assignments ({store.assignments.length})</Text>
               <TouchableOpacity
@@ -994,17 +1291,163 @@ export default function TeacherDashboard() {
 
         {tab === "tests" && (
           <View style={styles.tabContentWrapper}>
-            <View style={styles.actionHeaderBar}>
-              <View>
-                <Text style={styles.tabHeading}>
-                  Tests & Assessments ({store.tests.length})
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Assessments & Exams</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Timed Mock Tests</Text>
+                <Text style={styles.superscriptBadge}>/{store.tests.length}</Text>
+              </View>
+            </View>
+
+            {/* Tests & Assessments Summary Metrics Card */}
+            <View style={styles.perfOverviewCard}>
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>{store.tests.length}</Text>
+                <Text style={styles.perfStatLabel}>Total Tests</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>
+                  {store.tests.reduce(
+                    (acc, t) => acc + (t.questions?.length || t.totalQuestions || 0),
+                    0
+                  )}
                 </Text>
-                <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.MUTED, marginTop: 2 }}>
+                <Text style={styles.perfStatLabel}>Total Questions</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>
+                  {store.attendance.testAttendancePercentage ?? 0}%
+                </Text>
+                <Text style={styles.perfStatLabel}>Test Attendance</Text>
+              </View>
+            </View>
+
+            {/* Gemini AI Test & Question Studio Banner (Properly Spaced, Never Overflows) */}
+            <View
+              style={{
+                backgroundColor: Colors.DARK_CARD,
+                borderRadius: 22,
+                padding: 18,
+                marginBottom: 18,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 10,
+                    gap: 5,
+                  }}
+                >
+                  <Ionicons name="sparkles" size={13} color={Colors.LIME} />
+                  <Text
+                    style={{
+                      fontFamily: "outfit-bold",
+                      fontSize: 11,
+                      color: Colors.WHITE,
+                    }}
+                  >
+                    GEMINI AI QUESTION STUDIO
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "outfit",
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.65)",
+                  }}
+                >
+                  Auto-grading & Roll Call
+                </Text>
+              </View>
+
+              <Text
+                style={{
+                  fontFamily: "outfit-bold",
+                  fontSize: 17,
+                  color: Colors.WHITE,
+                  marginBottom: 4,
+                }}
+              >
+                Create Test & Upload / AI-Generate Questions
+              </Text>
+              <Text
+                style={{
+                  fontFamily: "outfit",
+                  fontSize: 12.5,
+                  color: "rgba(255,255,255,0.75)",
+                  lineHeight: 18,
+                  marginBottom: 14,
+                }}
+              >
+                Generate MCQs instantly with Gemini AI or upload your own custom questions, then publish to student dashboards.
+              </Text>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: Colors.MODE === "monochrome" ? Colors.WHITE : Colors.LIME_BRIGHT,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 14,
+                  gap: 8,
+                }}
+                activeOpacity={0.85}
+                onPress={() => setShowCreateTestModal(true)}
+              >
+                <Ionicons
+                  name="add-circle"
+                  size={18}
+                  color={Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT}
+                />
+                <Text
+                  style={{
+                    fontFamily: "outfit-bold",
+                    fontSize: 13.5,
+                    color: Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT,
+                  }}
+                >
+                  + Create New Test (Gemini AI / Upload Questions)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Section Header Row — Properly constrained with flex: 1 so button never overflows */}
+            <View style={styles.actionHeaderBar}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.tabHeading}>
+                  Published Tests ({store.tests.length})
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "outfit",
+                    fontSize: 12,
+                    color: Colors.MUTED,
+                    marginTop: 2,
+                  }}
+                >
                   Unattempted tests are automatically counted as Absent
                 </Text>
               </View>
               <TouchableOpacity
-                style={styles.addBtnSmall}
+                style={[styles.addBtnSmall, { flexShrink: 0 }]}
                 onPress={() => setShowCreateTestModal(true)}
               >
                 <Ionicons name="add" size={16} color={Colors.WHITE} />
@@ -1017,17 +1460,47 @@ export default function TeacherDashboard() {
                 tst.studentAttendance?.["primary-student"] === "Present" ||
                 (tst.studentAttendance?.["primary-student"] !== "Absent" &&
                   Boolean(tst.completed));
+              const qList = Array.isArray(tst.questions) ? tst.questions : [];
+              const qCount = qList.length || tst.totalQuestions || 0;
+              const isExpanded = expandedTestId === tst.id;
 
               return (
-                <View key={tst.id} style={styles.cardItem}>
+                <View key={tst.id} style={[styles.cardItem, { padding: 18, marginBottom: 14 }]}>
+                  {/* Top Badges Row: Subject + Type on Left, Attendance Status on Right */}
                   <View
                     style={{
                       flexDirection: "row",
                       justifyContent: "space-between",
-                      alignItems: "flex-start",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 10,
                     }}
                   >
-                    <Text style={styles.cardItemTitle}>{tst.title}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Text style={styles.classSubjectChip}>{tst.subject}</Text>
+                      <View
+                        style={{
+                          backgroundColor: Colors.BG_LIGHT,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: Colors.BORDER_LIGHT,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: "outfit-bold",
+                            fontSize: 10,
+                            color: Colors.MUTED,
+                          }}
+                        >
+                          {tst.type || "Mock Test"}
+                        </Text>
+                      </View>
+                    </View>
+
                     <View
                       style={[
                         styles.attendanceBadgeSmall,
@@ -1051,18 +1524,178 @@ export default function TeacherDashboard() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.cardItemMeta}>
-                    {tst.subject} • {tst.type} • {tst.totalQuestions} Questions • {tst.durationMinutes} Mins
-                  </Text>
-                  <Text style={styles.cardItemMeta}>
-                    Pass Marks: {tst.passMarks} • Schedule: {tst.scheduledDate}
+
+                  {/* Test Title */}
+                  <Text
+                    style={{
+                      fontFamily: "outfit-bold",
+                      fontSize: 16.5,
+                      color: Colors.BLACK,
+                      lineHeight: 22,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {tst.title}
                   </Text>
 
+                  {/* Well-Spaced Metric Pills */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: Colors.BG_LIGHT,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        gap: 5,
+                      }}
+                    >
+                      <Ionicons name="help-circle-outline" size={14} color={Colors.BLACK} />
+                      <Text style={{ fontFamily: "outfit-bold", fontSize: 12, color: Colors.BLACK }}>
+                        {qCount} Questions
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: Colors.BG_LIGHT,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        gap: 5,
+                      }}
+                    >
+                      <Ionicons name="timer-outline" size={14} color={Colors.BLACK} />
+                      <Text style={{ fontFamily: "outfit-bold", fontSize: 12, color: Colors.BLACK }}>
+                        {tst.durationMinutes} Mins
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: Colors.BG_LIGHT,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        gap: 5,
+                      }}
+                    >
+                      <Ionicons name="ribbon-outline" size={14} color={Colors.BLACK} />
+                      <Text style={{ fontFamily: "outfit-bold", fontSize: 12, color: Colors.BLACK }}>
+                        Pass: {tst.passMarks}/{qCount}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.cardItemMeta, { marginBottom: 12 }]}>
+                    🗓️ Schedule: {tst.scheduledDate}
+                  </Text>
+
+                  {/* Expandable Questions Preview Toggle */}
+                  {qList.length > 0 && (
+                    <View style={{ marginBottom: 10 }}>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          backgroundColor: Colors.BG_LIGHT,
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: Colors.BORDER_LIGHT,
+                        }}
+                        onPress={() =>
+                          setExpandedTestId(isExpanded ? null : tst.id)
+                        }
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Ionicons name="list-circle-outline" size={16} color={Colors.BLACK} />
+                          <Text
+                            style={{
+                              fontFamily: "outfit-bold",
+                              fontSize: 12.5,
+                              color: Colors.BLACK,
+                            }}
+                          >
+                            {isExpanded
+                              ? `Hide Test Questions (${qList.length})`
+                              : `Preview Uploaded / AI Questions (${qList.length})`}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={16}
+                          color={Colors.MUTED}
+                        />
+                      </TouchableOpacity>
+
+                      {isExpanded && (
+                        <View style={{ marginTop: 10, gap: 8 }}>
+                          {qList.map((qItem, qIdx) => (
+                            <View
+                              key={qItem.id || qIdx}
+                              style={{
+                                backgroundColor: Colors.BG_LIGHT,
+                                padding: 12,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: Colors.BORDER_LIGHT,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: "outfit-bold",
+                                  fontSize: 12.5,
+                                  color: Colors.BLACK,
+                                  marginBottom: 6,
+                                }}
+                              >
+                                Q{qIdx + 1}. {qItem.question}
+                              </Text>
+                              {(qItem.options || []).map((opt, oIdx) => {
+                                const isAns = qItem.correctIndex === oIdx;
+                                return (
+                                  <Text
+                                    key={oIdx}
+                                    style={{
+                                      fontFamily: isAns ? "outfit-bold" : "outfit",
+                                      fontSize: 11.5,
+                                      color: isAns ? "#16A34A" : Colors.GRAY,
+                                      marginTop: 2,
+                                    }}
+                                  >
+                                    {String.fromCharCode(65 + oIdx)}. {opt}{" "}
+                                    {isAns ? "✓ (Correct)" : ""}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Manage Student Test Attendance Button */}
                   <TouchableOpacity
-                    style={[styles.gradeActionBtn, { marginTop: 10 }]}
+                    style={[styles.gradeActionBtn, { marginTop: 2 }]}
                     onPress={() => handleOpenTestRollCall(tst)}
                   >
-                    <Ionicons name="checkmark-done" size={14} color={Colors.WHITE} />
+                    <Ionicons name="checkmark-done" size={15} color={Colors.WHITE} />
                     <Text style={styles.gradeActionBtnText}>
                       Manage Student Test Attendance (Present / Absent)
                     </Text>
@@ -1073,9 +1706,112 @@ export default function TeacherDashboard() {
           </View>
         )}
 
+        {tab === "attendance" && (
+          <View style={styles.tabContentWrapper}>
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Mark Present or Absent</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Attendance Roll Call</Text>
+                <Text style={styles.superscriptBadge}>/{store.attendance.overallPercentage ?? 0}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.perfOverviewCard}>
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>
+                  {store.attendance.overallPercentage ?? 0}%
+                </Text>
+                <Text style={styles.perfStatLabel}>Combined Avg</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>
+                  {store.attendance.classAttendancePercentage ?? 0}%
+                </Text>
+                <Text style={styles.perfStatLabel}>Class Roll Call</Text>
+              </View>
+              <View style={styles.perfDivider} />
+              <View style={styles.perfStat}>
+                <Text style={styles.perfStatVal}>
+                  {store.attendance.testAttendancePercentage ?? 0}%
+                </Text>
+                <Text style={styles.perfStatLabel}>Test Roll Call</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.tabHeading, { fontSize: 15, marginTop: 4, marginBottom: 10 }]}>
+              Class Sessions Roll Call ({store.classes.length}):
+            </Text>
+            {store.classes.map((cls) => {
+              const isRollCallDone = Boolean(cls.rollCallCompleted);
+              const records = Array.isArray(cls.attendanceRecords) ? cls.attendanceRecords : [];
+              const presentCount = records.filter((r) => r.status === "Present").length;
+              const absentCount = records.filter((r) => r.status === "Absent").length;
+              return (
+                <View key={cls.id} style={styles.cardItem}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.cardItemTitle}>{cls.title}</Text>
+                      <Text style={styles.cardItemMeta}>{cls.subject} • {cls.time}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.attendanceBadgeSmall,
+                        isRollCallDone ? { backgroundColor: "#F0FDF4" } : { backgroundColor: "#FEF2F2" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.attendanceBadgeText,
+                          { color: isRollCallDone ? "#16A34A" : "#DC2626" },
+                        ]}
+                      >
+                        {isRollCallDone ? `${presentCount}P / ${absentCount}A` : "Pending"}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.gradeActionBtn, { marginTop: 10 }]}
+                    onPress={() => handleOpenClassRollCall(cls)}
+                  >
+                    <Ionicons name="checkmark-done-circle" size={15} color={Colors.WHITE} />
+                    <Text style={styles.gradeActionBtnText}>
+                      {isRollCallDone ? "Edit Class Roll Call" : "Open Class Roll Call"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+
+            <Text style={[styles.tabHeading, { fontSize: 15, marginTop: 10, marginBottom: 10 }]}>
+              Test Sessions Roll Call ({store.tests.length}):
+            </Text>
+            {store.tests.map((tst) => (
+              <View key={tst.id} style={styles.cardItem}>
+                <Text style={styles.cardItemTitle}>{tst.title}</Text>
+                <Text style={styles.cardItemMeta}>{tst.subject} • {tst.scheduledDate}</Text>
+                <TouchableOpacity
+                  style={[styles.gradeActionBtn, { marginTop: 10 }]}
+                  onPress={() => handleOpenTestRollCall(tst)}
+                >
+                  <Ionicons name="checkmark-done" size={14} color={Colors.WHITE} />
+                  <Text style={styles.gradeActionBtnText}>Open Test Roll Call</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
         {tab === "students" && (
           <View style={styles.tabContentWrapper}>
-            <Text style={styles.tabHeading}>Student Attendance & Performance</Text>
+            <View style={styles.headingSection}>
+              <Text style={styles.displaySubHeading}>Enrolled Cohort & Analytics</Text>
+              <View style={styles.displayMainRow}>
+                <Text style={styles.displayMainHeading}>Student Roster</Text>
+                <Text style={styles.superscriptBadge}>/{enrolledStudents.length}</Text>
+              </View>
+            </View>
+
             <Text style={styles.tabSubheading}>
               Combined & separate tracking for Live Classes and Tests (0% if none attended)
             </Text>
@@ -1427,55 +2163,539 @@ export default function TeacherDashboard() {
         </View>
       </Modal>
 
-      {/* Create Test Modal */}
+      {/* Create Test Modal (Upload Questions + Gemini AI Question Generator) */}
       <Modal visible={showCreateTestModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
-              <View>
-                <Text style={styles.modalTitle}>Create New Test</Text>
-                <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.GRAY }}>
-                  Unattended tests are marked Absent for students
+          <View style={[styles.modalBox, { maxHeight: "92%" }]}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.modalTitle}>Create & Post New Test</Text>
+                <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.GRAY, marginTop: 2 }}>
+                  Upload custom questions or generate MCQs with Gemini AI
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setShowCreateTestModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.GRAY} />
+              <TouchableOpacity
+                onPress={() => setShowCreateTestModal(false)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  backgroundColor: Colors.BG_LIGHT,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="close" size={20} color={Colors.BLACK} />
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              placeholder="Test Title (e.g. System Design Assessment)"
-              placeholderTextColor="#9ca3af"
-              style={styles.modalInput}
-              value={newTestTitle}
-              onChangeText={setNewTestTitle}
-            />
-            <TextInput
-              placeholder="Subject (e.g. Software Engineering)"
-              placeholderTextColor="#9ca3af"
-              style={styles.modalInput}
-              value={newTestSubject}
-              onChangeText={setNewTestSubject}
-            />
-            <TextInput
-              placeholder="Duration in Minutes (e.g. 15)"
-              placeholderTextColor="#9ca3af"
-              keyboardType="numeric"
-              style={styles.modalInput}
-              value={newTestDuration}
-              onChangeText={setNewTestDuration}
-            />
-            <TextInput
-              placeholder="Pass Marks (e.g. 2)"
-              placeholderTextColor="#9ca3af"
-              keyboardType="numeric"
-              style={styles.modalInput}
-              value={newTestPassMarks}
-              onChangeText={setNewTestPassMarks}
-            />
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+              {/* 1. Test Details */}
+              <Text
+                style={{
+                  fontFamily: "outfit-bold",
+                  fontSize: 12.5,
+                  color: Colors.BLACK,
+                  marginBottom: 6,
+                }}
+              >
+                1. Test Information
+              </Text>
+              <TextInput
+                placeholder="Test Title (e.g. System Design & Microservices Quiz)"
+                placeholderTextColor="#9ca3af"
+                style={styles.modalInput}
+                value={newTestTitle}
+                onChangeText={setNewTestTitle}
+              />
+              <TextInput
+                placeholder="Subject (e.g. Software Engineering)"
+                placeholderTextColor="#9ca3af"
+                style={styles.modalInput}
+                value={newTestSubject}
+                onChangeText={setNewTestSubject}
+              />
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "outfit",
+                      fontSize: 11,
+                      color: Colors.MUTED,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Duration (Minutes)
+                  </Text>
+                  <TextInput
+                    placeholder="15"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="numeric"
+                    style={styles.modalInput}
+                    value={newTestDuration}
+                    onChangeText={setNewTestDuration}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "outfit",
+                      fontSize: 11,
+                      color: Colors.MUTED,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Pass Marks
+                  </Text>
+                  <TextInput
+                    placeholder="2"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="numeric"
+                    style={styles.modalInput}
+                    value={newTestPassMarks}
+                    onChangeText={setNewTestPassMarks}
+                  />
+                </View>
+              </View>
 
-            <View style={{ marginTop: 14 }}>
-              <Button text="Publish Test" type="fill" onPress={handleCreateTest} />
+              {/* 2. Gemini AI Question Generator */}
+              <View
+                style={{
+                  backgroundColor: Colors.BG_LIGHT,
+                  borderRadius: 18,
+                  padding: 14,
+                  marginTop: 6,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.BORDER_LIGHT,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="sparkles" size={16} color={Colors.BLACK} />
+                    <Text
+                      style={{
+                        fontFamily: "outfit-bold",
+                        fontSize: 13.5,
+                        color: Colors.BLACK,
+                      }}
+                    >
+                      2. Generate Questions with Gemini AI
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: Colors.LIME_LIGHT,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "outfit-bold",
+                        fontSize: 10,
+                        color: Colors.BLACK,
+                      }}
+                    >
+                      GEMINI AI
+                    </Text>
+                  </View>
+                </View>
+
+                <TextInput
+                  placeholder="Optional Topic Prompt (e.g. React Hooks, BFS/DFS, SQL Joins)"
+                  placeholderTextColor="#9ca3af"
+                  style={[styles.modalInput, { backgroundColor: Colors.WHITE, marginBottom: 8 }]}
+                  value={aiTopicPrompt}
+                  onChangeText={setAiTopicPrompt}
+                />
+
+                {/* Question Count Selector */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.MUTED }}>
+                    Number of AI Questions:
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    {[3, 5, 8, 10].map((cnt) => {
+                      const active = aiQuestionCount === cnt;
+                      return (
+                        <TouchableOpacity
+                          key={cnt}
+                          onPress={() => setAiQuestionCount(cnt)}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 10,
+                            backgroundColor: active ? Colors.BLACK : Colors.WHITE,
+                            borderWidth: 1,
+                            borderColor: active ? Colors.BLACK : Colors.BORDER_LIGHT,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "outfit-bold",
+                              fontSize: 11.5,
+                              color: active ? Colors.WHITE : Colors.BLACK,
+                            }}
+                          >
+                            {cnt} Qs
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: Colors.BLACK,
+                    paddingVertical: 11,
+                    borderRadius: 12,
+                    gap: 8,
+                  }}
+                  activeOpacity={0.85}
+                  disabled={aiGenerating}
+                  onPress={handleGenerateQuestionsWithAI}
+                >
+                  {aiGenerating ? (
+                    <>
+                      <ActivityIndicator size="small" color={Colors.WHITE} />
+                      <Text
+                        style={{
+                          fontFamily: "outfit-bold",
+                          fontSize: 12.5,
+                          color: Colors.WHITE,
+                        }}
+                      >
+                        Gemini AI Generating {aiQuestionCount} Questions...
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={15} color={Colors.LIME} />
+                      <Text
+                        style={{
+                          fontFamily: "outfit-bold",
+                          fontSize: 12.5,
+                          color: Colors.WHITE,
+                        }}
+                      >
+                        ✨ Generate {aiQuestionCount} Questions with Gemini AI
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* 3. Upload / Add Custom Question Manually */}
+              <View
+                style={{
+                  backgroundColor: Colors.BG_LIGHT,
+                  borderRadius: 18,
+                  padding: 14,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.BORDER_LIGHT,
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                  onPress={() => setShowManualQForm(!showManualQForm)}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="cloud-upload-outline" size={17} color={Colors.BLACK} />
+                    <Text
+                      style={{
+                        fontFamily: "outfit-bold",
+                        fontSize: 13.5,
+                        color: Colors.BLACK,
+                      }}
+                    >
+                      3. Upload / Add Custom Question Manually
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showManualQForm ? "chevron-up" : "add-circle-outline"}
+                    size={20}
+                    color={Colors.BLACK}
+                  />
+                </TouchableOpacity>
+
+                {showManualQForm && (
+                  <View style={{ marginTop: 12 }}>
+                    <TextInput
+                      placeholder="Enter Question Text..."
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualQText}
+                      onChangeText={setManualQText}
+                    />
+                    <TextInput
+                      placeholder="Option A"
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualOptA}
+                      onChangeText={setManualOptA}
+                    />
+                    <TextInput
+                      placeholder="Option B"
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualOptB}
+                      onChangeText={setManualOptB}
+                    />
+                    <TextInput
+                      placeholder="Option C"
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualOptC}
+                      onChangeText={setManualOptC}
+                    />
+                    <TextInput
+                      placeholder="Option D"
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualOptD}
+                      onChangeText={setManualOptD}
+                    />
+
+                    {/* Select Correct Option */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text style={{ fontFamily: "outfit-bold", fontSize: 12, color: Colors.BLACK }}>
+                        Correct Option:
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: 6 }}>
+                        {["A", "B", "C", "D"].map((letter, idx) => {
+                          const isSel = manualCorrectIdx === idx;
+                          return (
+                            <TouchableOpacity
+                              key={letter}
+                              onPress={() => setManualCorrectIdx(idx)}
+                              style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 10,
+                                backgroundColor: isSel ? "#16A34A" : Colors.WHITE,
+                                borderWidth: 1,
+                                borderColor: isSel ? "#16A34A" : Colors.BORDER_LIGHT,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: "outfit-bold",
+                                  fontSize: 12,
+                                  color: isSel ? Colors.WHITE : Colors.BLACK,
+                                }}
+                              >
+                                {letter}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    <TextInput
+                      placeholder="Optional Answer Explanation..."
+                      placeholderTextColor="#9ca3af"
+                      style={[styles.modalInput, { backgroundColor: Colors.WHITE }]}
+                      value={manualExplanation}
+                      onChangeText={setManualExplanation}
+                    />
+
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "#16A34A",
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        gap: 6,
+                      }}
+                      onPress={handleAddManualQuestion}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.WHITE} />
+                      <Text
+                        style={{
+                          fontFamily: "outfit-bold",
+                          fontSize: 12.5,
+                          color: Colors.WHITE,
+                        }}
+                      >
+                        + Upload Question to Test Paper
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* 4. Uploaded & AI-Generated Questions Preview List */}
+              <View style={{ marginBottom: 8 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "outfit-bold",
+                      fontSize: 13,
+                      color: Colors.BLACK,
+                    }}
+                  >
+                    Uploaded / AI Questions ({testQuestions.length})
+                  </Text>
+                  {testQuestions.length > 0 && (
+                    <TouchableOpacity onPress={() => setTestQuestions([])}>
+                      <Text
+                        style={{
+                          fontFamily: "outfit-bold",
+                          fontSize: 11.5,
+                          color: Colors.DANGER,
+                        }}
+                      >
+                        Clear All
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {testQuestions.length === 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: Colors.BG_LIGHT,
+                      borderRadius: 14,
+                      padding: 12,
+                      borderWidth: 1,
+                      borderColor: Colors.BORDER_LIGHT,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "outfit",
+                        fontSize: 12,
+                        color: Colors.MUTED,
+                        textAlign: "center",
+                      }}
+                    >
+                      No questions added yet. Tap "✨ Generate with Gemini AI" or upload a custom question above (or tap Post Test to auto-generate {aiQuestionCount} AI questions!).
+                    </Text>
+                  </View>
+                ) : (
+                  testQuestions.map((qItem, qIdx) => (
+                    <View
+                      key={qItem.id || qIdx}
+                      style={{
+                        backgroundColor: Colors.BG_LIGHT,
+                        borderRadius: 14,
+                        padding: 12,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: Colors.BORDER_LIGHT,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: "outfit-bold",
+                            fontSize: 12.5,
+                            color: Colors.BLACK,
+                            flex: 1,
+                            marginRight: 8,
+                          }}
+                        >
+                          Q{qIdx + 1}. {qItem.question}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveTestQuestion(qItem.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={Colors.DANGER} />
+                        </TouchableOpacity>
+                      </View>
+                      {(qItem.options || []).map((opt, oIdx) => {
+                        const isCorrect = qItem.correctIndex === oIdx;
+                        return (
+                          <Text
+                            key={oIdx}
+                            style={{
+                              fontFamily: isCorrect ? "outfit-bold" : "outfit",
+                              fontSize: 11.5,
+                              color: isCorrect ? "#16A34A" : Colors.GRAY,
+                              marginTop: 2,
+                            }}
+                          >
+                            {String.fromCharCode(65 + oIdx)}. {opt}{" "}
+                            {isCorrect ? "✓ (Correct)" : ""}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+
+            <View style={{ marginTop: 12 }}>
+              <Button
+                text={
+                  publishingTest
+                    ? "Posting Test..."
+                    : testQuestions.length > 0
+                    ? `Post Test (${testQuestions.length} Questions)`
+                    : `AI-Generate & Post Test (${aiQuestionCount} Questions)`
+                }
+                type="fill"
+                loading={publishingTest}
+                onPress={handleCreateTest}
+              />
             </View>
           </View>
         </View>
@@ -1609,14 +2829,14 @@ export default function TeacherDashboard() {
         </View>
       </Modal>
 
-      {/* Teacher Floating Capsule Bottom Navigation Dock */}
+      {/* Teacher Floating Capsule Bottom Navigation Dock (Max 5 Items: 4 Primary + More Button) */}
       <View style={styles.floatingDockWrapper} pointerEvents="box-none">
         <View style={styles.floatingDock}>
           {[
+            { key: "overview", label: "Home", activeIcon: "home", inactiveIcon: "home-outline" },
             { key: "classes", label: "Classes", activeIcon: "videocam", inactiveIcon: "videocam-outline" },
             { key: "assignments", label: "Tasks", activeIcon: "document-text", inactiveIcon: "document-text-outline" },
             { key: "tests", label: "Tests", activeIcon: "timer", inactiveIcon: "timer-outline" },
-            { key: "students", label: "Roster", activeIcon: "people", inactiveIcon: "people-outline" },
           ].map((item) => {
             const isFocused = tab === item.key;
             if (isFocused) {
@@ -1645,91 +2865,290 @@ export default function TeacherDashboard() {
               </TouchableOpacity>
             );
           })}
+
+          {/* 5th Item: "More" Button for Remaining Teacher Pages */}
+          {tab === "attendance" || tab === "students" || showMoreModal ? (
+            <TouchableOpacity
+              onPress={() => setShowMoreModal(true)}
+              activeOpacity={0.88}
+              style={styles.activePillCapsule}
+            >
+              <Ionicons name="apps" size={16} color={Colors.WHITE} />
+              <Text style={styles.activePillText}>
+                {tab === "attendance" ? "Roll Call" : tab === "students" ? "Roster" : "More"}
+              </Text>
+              <View style={styles.dockLimeDot} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setShowMoreModal(true)}
+              activeOpacity={0.7}
+              style={styles.inactiveIconBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="apps-outline" size={22} color={Colors.MUTED} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      {/* Teacher "More Pages" Navigation Modal */}
+      <Modal
+        visible={showMoreModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMoreModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMoreModal(false)}
+        >
+          <View
+            style={[styles.modalBox, { maxHeight: "82%" }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 14,
+              }}
+            >
+              <View>
+                <Text style={styles.modalTitle}>More Faculty Pages</Text>
+                <Text style={{ fontFamily: "outfit", fontSize: 12, color: Colors.MUTED, marginTop: 2 }}>
+                  Jump to any Teacher Studio page or action
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowMoreModal(false)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  backgroundColor: Colors.BG_LIGHT,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="close" size={20} color={Colors.BLACK} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                {
+                  key: "attendance",
+                  title: "Attendance Roll Call",
+                  subtitle: "Mark Present / Absent for Live Classes & Tests",
+                  icon: "checkmark-done-circle",
+                  color: "#16A34A",
+                  bg: "#DCFCE7",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("attendance");
+                  },
+                },
+                {
+                  key: "students",
+                  title: "Student Roster & Analytics",
+                  subtitle: "Enrolled students & subject-wise attendance %",
+                  icon: "people",
+                  color: "#2563EB",
+                  bg: "#DBEAFE",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("students");
+                  },
+                },
+                {
+                  key: "classes",
+                  title: "Live Classes Studio",
+                  subtitle: "Schedule classes & manage class attendance",
+                  icon: "videocam",
+                  color: "#7C3AED",
+                  bg: "#EDE9FE",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("classes");
+                  },
+                },
+                {
+                  key: "assignments",
+                  title: "Assignments & Grading Desk",
+                  subtitle: "Post homework & grade student submissions",
+                  icon: "document-text",
+                  color: "#EA580C",
+                  bg: "#FFEDD5",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("assignments");
+                  },
+                },
+                {
+                  key: "tests",
+                  title: "Timed Mock Tests",
+                  subtitle: "Publish tests & manage test roll call",
+                  icon: "timer",
+                  color: "#DB2777",
+                  bg: "#FCE7F3",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("tests");
+                  },
+                },
+                {
+                  key: "overview",
+                  title: "Faculty Home Overview",
+                  subtitle: "Main academic studio & quick launch hub",
+                  icon: "home",
+                  color: "#0D9488",
+                  bg: "#CCFBF1",
+                  onSelect: () => {
+                    setShowMoreModal(false);
+                    setTab("overview");
+                  },
+                },
+              ].map((pg) => (
+                <TouchableOpacity
+                  key={pg.key}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: tab === pg.key ? Colors.LIME_LIGHT : Colors.BG_LIGHT,
+                    padding: 13,
+                    borderRadius: 18,
+                    marginBottom: 9,
+                    borderWidth: 1,
+                    borderColor: tab === pg.key ? Colors.BLACK : Colors.BORDER_LIGHT,
+                  }}
+                  activeOpacity={0.85}
+                  onPress={pg.onSelect}
+                >
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 13,
+                      backgroundColor: pg.bg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <Ionicons name={pg.icon} size={20} color={pg.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: "outfit-bold", fontSize: 14, color: Colors.BLACK }}>
+                      {pg.title}
+                    </Text>
+                    <Text style={{ fontFamily: "outfit", fontSize: 11.5, color: Colors.MUTED, marginTop: 2 }}>
+                      {pg.subtitle}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.MUTED} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.BG_LIGHT,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 110,
-  },
-  centerBox: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.BG_LIGHT,
-  },
+const getStyles = () =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.BG_LIGHT,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 110,
+    },
+    centerBox: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: Colors.BG_LIGHT,
+    },
 
-  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
-  topHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: Colors.LIME,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#B8E62E",
-  },
-  welcomeSub: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: "rgba(13, 13, 13, 0.72)",
-  },
-  userNameText: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: Colors.BLACK,
-    marginTop: 1,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  streakPill: {
-    backgroundColor: Colors.WHITE,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(13, 13, 13, 0.08)",
-  },
-  streakPillText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: "#EA580C",
-  },
-  proBadge: {
-    backgroundColor: Colors.BLACK,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  proText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.WHITE,
-    letterSpacing: 0.5,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginLeft: 2,
-  },
+    /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
+    topHeader: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: Colors.NAVBAR_BG,
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.NAVBAR_BORDER,
+    },
+    subTabBackCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.12)",
+      flexShrink: 0,
+    },
+    welcomeSub: {
+      fontFamily: "outfit",
+      fontSize: 12,
+      color: Colors.ON_NAVBAR_SUB,
+    },
+    userNameText: {
+      fontFamily: "outfit-bold",
+      fontSize: 16,
+      color: Colors.ON_NAVBAR || Colors.ON_ACCENT,
+      marginTop: 1,
+    },
+    headerRightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flexShrink: 0,
+    },
+    streakPill: {
+      backgroundColor: Colors.WHITE,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.08)",
+    },
+    streakPillText: {
+      fontFamily: "outfit-bold",
+      fontSize: 10.5,
+      color: "#EA580C",
+    },
+    themeToggleBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: Colors.BLACK,
+    },
+    avatarWrapper: {
+      position: "relative",
+      marginLeft: 1,
+    },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.WHITE,
     alignItems: "center",
     justifyContent: "center",
@@ -1738,7 +3157,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.BLACK,
   },
   activeLimeDot: {
@@ -1753,26 +3172,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.WHITE,
   },
   logoutNavBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.WHITE,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(13, 13, 13, 0.12)",
-    marginLeft: 2,
+    marginLeft: 1,
   },
 
   /* Display Headings */
   headingSection: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   displaySubHeading: {
     fontFamily: "outfit",
-    fontSize: 28,
+    fontSize: 20,
     color: Colors.MUTED,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   displayMainRow: {
     flexDirection: "row",
@@ -1781,13 +3200,13 @@ const styles = StyleSheet.create({
   },
   displayMainHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 32,
+    fontSize: 24,
     color: Colors.BLACK,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   superscriptBadge: {
     fontFamily: "outfit",
-    fontSize: 16,
+    fontSize: 13,
     color: Colors.MUTED,
   },
 
@@ -1810,15 +3229,15 @@ const styles = StyleSheet.create({
   limeDateText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   giantDateNumber: {
     fontFamily: "outfit-bold",
-    fontSize: 52,
+    fontSize: 38,
     color: Colors.BLACK,
-    lineHeight: 58,
+    lineHeight: 44,
     marginTop: 4,
-    letterSpacing: -1,
+    letterSpacing: -0.8,
   },
   attendanceMetaText: {
     fontFamily: "outfit",
@@ -1902,7 +3321,7 @@ const styles = StyleSheet.create({
   filterLimeDotText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   activeFilterPill: {
     flexDirection: "row",
@@ -1945,7 +3364,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sliderScroll: {
-    paddingHorizontal: 20,
     paddingRight: 6,
   },
   slideCard: {
@@ -1968,8 +3386,9 @@ const styles = StyleSheet.create({
   },
   slideLeftColumn: {
     flex: 1.15,
-    justifyContent: "space-between",
-    paddingRight: 6,
+    justifyContent: "center",
+    paddingRight: 8,
+    gap: 6,
   },
   slideRightColumn: {
     width: 100,
@@ -1981,50 +3400,33 @@ const styles = StyleSheet.create({
     width: 95,
     height: 95,
   },
-  slideBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: Colors.LIME,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  slideBadgeText: {
-    color: Colors.BLACK,
-    fontSize: 10.5,
-    fontFamily: "outfit-bold",
-  },
   slideTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16.5,
+    fontSize: 17,
     color: Colors.WHITE,
-    marginTop: 5,
-    lineHeight: 21,
+    lineHeight: 22,
   },
   slideSubtitle: {
     fontFamily: "outfit",
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.72)",
-    marginTop: 2,
-    lineHeight: 15,
+    fontSize: 11.5,
+    color: "rgba(255, 255, 255, 0.78)",
+    lineHeight: 16,
   },
   slideCtaBtn: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: Colors.LIME,
+    backgroundColor: Colors.MODE === "monochrome" ? Colors.WHITE : Colors.LIME,
     paddingHorizontal: 13,
     paddingVertical: 6,
     borderRadius: 12,
     gap: 4,
-    marginTop: 8,
+    marginTop: 4,
   },
   slideCtaText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.BLACK,
+    color: Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT,
   },
   dotsRow: {
     flexDirection: "row",
@@ -2049,7 +3451,6 @@ const styles = StyleSheet.create({
   quickLaunchDock: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
     marginVertical: 10,
     gap: 10,
   },

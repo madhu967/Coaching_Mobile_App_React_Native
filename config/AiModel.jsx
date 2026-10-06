@@ -48,6 +48,8 @@ function getMockResponse() {
 }
 
 const CANDIDATE_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
   "gemini-3.8-flash",
   "gemini-3.8-pro",
 ];
@@ -87,7 +89,13 @@ export async function generateContentWithAI(userInput) {
     return responseCache[userInput];
   }
 
-  const ai = getAIInstance();
+  let ai = null;
+  try {
+    ai = getAIInstance();
+  } catch (e) {
+    return getFallbackResponse(userInput);
+  }
+
   const config = {
     generationConfig: {
       responseMimeType: "application/json",
@@ -125,7 +133,7 @@ export async function generateContentWithAI(userInput) {
     } catch (err) {
       console.warn(`⚠️ Model ${model} failed (${err.message}). Trying next fallback...`);
       // If 503 high demand, pause briefly before next attempt
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
   }
 
@@ -134,4 +142,183 @@ export async function generateContentWithAI(userInput) {
   return getFallbackResponse(userInput);
 }
 
+/**
+ * Generate Multiple-Choice Test Questions using Gemini AI
+ * Returns an array of question objects:
+ * [{ id, question, options: [str, str, str, str], correctIndex: 0..3, explanation: str }]
+ */
+export async function generateTestQuestionsWithAI({
+  title = "Assessment",
+  subject = "Computer Science",
+  topic = "",
+  count = 5,
+  difficulty = "Intermediate",
+}) {
+  const numQuestions = Math.max(1, Math.min(15, Number(count) || 5));
+  const focusTopic = (topic || title || subject).trim();
+
+  const prompt = `You are an expert academic professor creating a multiple-choice assessment test.
+Test Title: "${title}"
+Subject: "${subject}"
+Specific Topic / Focus: "${focusTopic}"
+Difficulty Level: "${difficulty}"
+Number of Questions: ${numQuestions}
+
+Generate exactly ${numQuestions} high-quality multiple-choice questions (MCQs).
+Return ONLY valid JSON matching this exact structure:
+{
+  "questions": [
+    {
+      "question": "Clear, specific question text?",
+      "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+      "correctIndex": 0,
+      "explanation": "Concise explanation of why the correct option is right."
+    }
+  ]
+}
+Rules:
+- Each question must have exactly 4 distinct, realistic options (strings without 'A.'/'B.' prefixes).
+- "correctIndex" must be an integer 0, 1, 2, or 3 indicating the index of the correct option.
+- Questions must be directly relevant to "${focusTopic}" and "${subject}".`;
+
+  try {
+    const rawText = await generateContentWithAI(prompt);
+    const cleaned = rawText
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.questions)
+      ? parsed.questions
+      : [];
+
+    if (list.length > 0) {
+      return list.slice(0, numQuestions).map((q, idx) => {
+        const opts =
+          Array.isArray(q.options) && q.options.length >= 4
+            ? q.options.slice(0, 4).map((o) => String(o))
+            : [
+                "Primary architectural approach",
+                "Optimized implementation pattern",
+                "Deprecated legacy method",
+                "Unverified manual workaround",
+              ];
+        const cIdx =
+          typeof q.correctIndex === "number" &&
+          q.correctIndex >= 0 &&
+          q.correctIndex <= 3
+            ? q.correctIndex
+            : 0;
+        return {
+          id: `ai-q-${Date.now()}-${idx + 1}`,
+          question: String(q.question || `Question ${idx + 1} on ${focusTopic}`),
+          options: opts,
+          correctIndex: cIdx,
+          explanation: String(
+            q.explanation ||
+              `Option ${String.fromCharCode(65 + cIdx)} is the correct principle for ${focusTopic}.`
+          ),
+        };
+      });
+    }
+  } catch (err) {
+    console.warn("Gemini MCQ parse fallback:", err?.message);
+  }
+
+  // Intelligent topic-specific fallback bank if API is offline or rate-limited
+  const templates = [
+    {
+      question: `In ${subject} (${focusTopic}), what is the primary advantage of following a modular and well-structured design pattern?`,
+      options: [
+        "Improved scalability, maintainability, and testability across components",
+        "Increased runtime memory overhead without benefit",
+        "Eliminates the need for any input validation",
+        "Prevents asynchronous execution entirely",
+      ],
+      correctIndex: 0,
+      explanation: `Modular architecture in ${focusTopic} directly improves maintainability, reuse, and isolated unit testing.`,
+    },
+    {
+      question: `Which approach best optimizes performance when working with ${focusTopic} in ${subject}?`,
+      options: [
+        "Executing redundant blocking operations on the main thread",
+        "Minimizing unnecessary recomputations and using efficient data structures",
+        "Storing all state in unindexed global variables",
+        "Disabling caching and memoization mechanisms",
+      ],
+      correctIndex: 1,
+      explanation: `Minimizing redundant work and choosing optimal data structures ensures high performance in ${focusTopic}.`,
+    },
+    {
+      question: `When debugging or validating an implementation of ${focusTopic}, what should be verified first?`,
+      options: [
+        "Only visual styling without checking data flow",
+        "Boundary conditions, input constraints, and core state transitions",
+        "Randomly changing configuration constants",
+        "Skipping error handling blocks",
+      ],
+      correctIndex: 1,
+      explanation: `Checking boundary conditions, edge cases, and state transitions catches the majority of logic defects in ${focusTopic}.`,
+    },
+    {
+      question: `What is the most reliable way to handle edge cases and unexpected inputs in ${focusTopic}?`,
+      options: [
+        "Graceful error handling, schema validation, and deterministic fallbacks",
+        "Ignoring exceptions and allowing silent failures",
+        "Hardcoding a single static test value",
+        "Terminating the process without logging",
+      ],
+      correctIndex: 0,
+      explanation: `Validation and deterministic fallback handling ensure resilience in production ${subject} systems.`,
+    },
+    {
+      question: `Which metric is most important when evaluating the efficiency of a ${focusTopic} solution in ${subject}?`,
+      options: [
+        "Number of lines of comments in the file",
+        "Time complexity, space complexity, and reliability under load",
+        "Length of variable identifiers",
+        "File creation timestamp",
+      ],
+      correctIndex: 1,
+      explanation: `Algorithmic time/space complexity and runtime reliability are the standard engineering benchmarks for ${focusTopic}.`,
+    },
+    {
+      question: `In an advanced ${focusTopic} workflow, why is separation of concerns critical?`,
+      options: [
+        "It couples UI rendering directly to database queries",
+        "It isolates business logic from presentation, making updates safe and predictable",
+        "It doubles network latency",
+        "It prevents code reuse across modules",
+      ],
+      correctIndex: 1,
+      explanation: `Separation of concerns decouples core logic from the view layer, allowing independent testing and evolution.`,
+    },
+    {
+      question: `Which testing strategy provides the strongest confidence when deploying changes to ${focusTopic}?`,
+      options: [
+        "Combining unit tests for core logic with integration tests for end-to-end flows",
+        "Relying exclusively on manual inspection in production",
+        "Testing only with empty inputs",
+        "Skipping automated checks to save build time",
+      ],
+      correctIndex: 0,
+      explanation: `Unit tests verify isolated functions while integration tests confirm that ${focusTopic} components work together properly.`,
+    },
+  ];
+
+  return Array.from({ length: numQuestions }, (_, idx) => {
+    const tpl = templates[idx % templates.length];
+    return {
+      id: `ai-q-${Date.now()}-${idx + 1}`,
+      question: tpl.question,
+      options: [...tpl.options],
+      correctIndex: tpl.correctIndex,
+      explanation: tpl.explanation,
+    };
+  });
+}
+
 export default generateContentWithAI;
+

@@ -17,6 +17,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { UserDetailContext } from "../../context/UserDetailContext";
+import { useTheme } from "../../context/ThemeContext";
 import { auth } from "../../config/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { getAllCourses, toggleTopicCompletion } from "../../services/courseStorage";
@@ -27,6 +28,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 export default function PerformanceScreen() {
   const router = useRouter();
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const { themeMode, isIndigo, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(), [themeMode]);
 
   const [courses, setCourses] = useState([]);
   const [lmsStore, setLmsStore] = useState(null);
@@ -178,7 +181,7 @@ export default function PerformanceScreen() {
   return (
     <View style={styles.container}>
       {/* ===============================================================
-          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, Name, Streak, PRO, Avatar & Logout)
+          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, Name, Streak, Theme Toggle Icon, Avatar & Logout)
           =============================================================== */}
       <View style={styles.topHeader}>
         <View>
@@ -191,9 +194,18 @@ export default function PerformanceScreen() {
             <Text style={styles.streakText}>🔥 {streakDays}d</Text>
           </View>
 
-          <View style={styles.proBadge}>
-            <Text style={styles.proText}>PRO</Text>
-          </View>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+            style={styles.themeToggleBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="color-palette"
+              size={18}
+              color={Colors.BLACK}
+            />
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => router.push("/Profile")}
@@ -381,7 +393,7 @@ export default function PerformanceScreen() {
             </View>
 
             <View style={styles.translucentPill}>
-              <Ionicons name="time-outline" size={12} color={Colors.BLACK} />
+              <Ionicons name="time-outline" size={12} color={Colors.ON_ACCENT} />
               <Text style={styles.translucentPillText}>Daily Pace: 2.5h</Text>
             </View>
           </View>
@@ -588,75 +600,75 @@ export default function PerformanceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.BG_LIGHT,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 110,
-  },
+const getStyles = () =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.BG_LIGHT,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 110,
+    },
 
-  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
-  topHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: Colors.LIME,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#B8E62E",
-  },
-  welcomeSub: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: "rgba(13, 13, 13, 0.72)",
-  },
-  userNameText: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: Colors.BLACK,
-    marginTop: 1,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  streakPill: {
-    backgroundColor: Colors.WHITE,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(13, 13, 13, 0.08)",
-  },
-  streakText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: "#EA580C",
-  },
-  proBadge: {
-    backgroundColor: Colors.BLACK,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  proText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.WHITE,
-    letterSpacing: 0.5,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginLeft: 2,
-  },
+    /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
+    topHeader: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: Colors.NAVBAR_BG,
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.NAVBAR_BORDER,
+    },
+    welcomeSub: {
+      fontFamily: "outfit",
+      fontSize: 13,
+      color: Colors.ON_NAVBAR_SUB,
+    },
+    userNameText: {
+      fontFamily: "outfit-bold",
+      fontSize: 17,
+      color: Colors.ON_NAVBAR || Colors.ON_ACCENT,
+      marginTop: 1,
+    },
+    headerRightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 0,
+    },
+    streakPill: {
+      backgroundColor: Colors.WHITE,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.08)",
+    },
+    streakText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: "#EA580C",
+    },
+    themeToggleBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: Colors.BLACK,
+    },
+    avatarWrapper: {
+      position: "relative",
+      marginLeft: 2,
+    },
   avatarCircle: {
     width: 38,
     height: 38,
@@ -696,13 +708,13 @@ const styles = StyleSheet.create({
 
   /* Display Headings */
   headingSection: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   displaySubHeading: {
     fontFamily: "outfit",
-    fontSize: 26,
+    fontSize: 20,
     color: Colors.MUTED,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   displayMainRow: {
     flexDirection: "row",
@@ -711,13 +723,13 @@ const styles = StyleSheet.create({
   },
   displayMainHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 32,
+    fontSize: 24,
     color: Colors.BLACK,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   superscriptBadge: {
     fontFamily: "outfit",
-    fontSize: 16,
+    fontSize: 13,
     color: Colors.MUTED,
   },
 
@@ -787,7 +799,7 @@ const styles = StyleSheet.create({
     color: Colors.WHITE,
   },
   chartLimePill: {
-    backgroundColor: Colors.LIME,
+    backgroundColor: Colors.MODE === "monochrome" ? Colors.WHITE : Colors.LIME,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -795,7 +807,7 @@ const styles = StyleSheet.create({
   chartLimePillText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.BLACK,
+    color: Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT,
   },
   chartArea: {
     height: 140,
@@ -879,7 +891,7 @@ const styles = StyleSheet.create({
   productivityHighlightText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   toggleRow: {
     flexDirection: "row",
@@ -948,7 +960,7 @@ const styles = StyleSheet.create({
   translucentPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.08)",
+    backgroundColor: Colors.MODE === "indigo" ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.08)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -957,7 +969,7 @@ const styles = StyleSheet.create({
   translucentPillText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   limeCardContentRow: {
     flexDirection: "row",
@@ -987,7 +999,7 @@ const styles = StyleSheet.create({
   donutPercentText: {
     fontFamily: "outfit-bold",
     fontSize: 18,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   donutBadgesRow: {
     flexDirection: "row",
@@ -1006,7 +1018,7 @@ const styles = StyleSheet.create({
     color: Colors.WHITE,
   },
   gradeBadgeMini: {
-    backgroundColor: "rgba(0, 0, 0, 0.12)",
+    backgroundColor: Colors.MODE === "indigo" ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.12)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1014,7 +1026,7 @@ const styles = StyleSheet.create({
   gradeBadgeMiniText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   donutLegendRow: {
     flexDirection: "row",
@@ -1025,19 +1037,19 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.BLACK,
+    backgroundColor: Colors.ON_ACCENT,
   },
   legendDotHollow: {
     width: 6,
     height: 6,
     borderRadius: 3,
     borderWidth: 1.5,
-    borderColor: Colors.BLACK,
+    borderColor: Colors.ON_ACCENT,
   },
   legendText: {
     fontFamily: "outfit",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
     marginLeft: 3,
   },
   limeCourseInfoCol: {
@@ -1047,14 +1059,14 @@ const styles = StyleSheet.create({
   limeCourseTitle: {
     fontFamily: "outfit-bold",
     fontSize: 17,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
     lineHeight: 22,
     letterSpacing: -0.4,
   },
   limeCourseSub: {
     fontFamily: "outfit",
     fontSize: 12,
-    color: "rgba(0, 0, 0, 0.7)",
+    color: Colors.ON_NAVBAR_SUB,
     marginTop: 4,
   },
   avatarClusterLime: {
@@ -1245,6 +1257,6 @@ const styles = StyleSheet.create({
   doneLimeText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
 });

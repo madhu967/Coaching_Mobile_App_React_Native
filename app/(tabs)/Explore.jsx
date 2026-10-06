@@ -17,6 +17,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { getAllCourses, removeCourse } from "../../services/courseStorage";
 import { UserDetailContext } from "../../context/UserDetailContext";
+import { useTheme } from "../../context/ThemeContext";
 import { auth } from "../../config/firebaseConfig";
 import { signOut } from "firebase/auth";
 
@@ -103,6 +104,8 @@ const CURATED_COACHING_TRACKS = [
 const Explore = () => {
   const router = useRouter();
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const { themeMode, isIndigo, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(), [themeMode]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -236,7 +239,7 @@ const Explore = () => {
       >
         <View style={styles.heroGeneratorLeft}>
           <View style={styles.limeSparkBadge}>
-            <Ionicons name="sparkles" size={12} color={Colors.BLACK} />
+            <Ionicons name="sparkles" size={12} color={Colors.ON_ACCENT} />
             <Text style={styles.limeSparkText}>AI Needs-Based Engine</Text>
           </View>
           <Text style={styles.heroGeneratorTitle}>
@@ -253,7 +256,7 @@ const Explore = () => {
 
         <View style={styles.heroGeneratorRight}>
           <View style={styles.limeAuraCircle}>
-            <Ionicons name="school" size={38} color={Colors.BLACK} />
+            <Ionicons name="school" size={38} color={Colors.ON_ACCENT} />
           </View>
         </View>
       </TouchableOpacity>
@@ -311,7 +314,7 @@ const Explore = () => {
           <View style={styles.courseCardTopRow}>
             {item.isPersonalized ? (
               <View style={styles.limePersonalizedPill}>
-                <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
+                <Ionicons name="sparkles" size={11} color={Colors.ON_ACCENT} />
                 <Text style={styles.limePersonalizedText}>AI Tailored</Text>
               </View>
             ) : (
@@ -434,9 +437,18 @@ const Explore = () => {
         </View>
 
         <View style={styles.headerRightGroup}>
-          <View style={styles.proBadge}>
-            <Text style={styles.proText}>PRO</Text>
-          </View>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+            style={styles.themeToggleBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="color-palette"
+              size={18}
+              color={Colors.BLACK}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/Profile")}
             activeOpacity={0.8}
@@ -493,70 +505,70 @@ const Explore = () => {
 
 export default Explore;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.BG_LIGHT,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 110,
-  },
-  centerBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listHeaderContainer: {
-    marginBottom: 20,
-  },
+const getStyles = () =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.BG_LIGHT,
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 110,
+    },
+    centerBox: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    listHeaderContainer: {
+      marginBottom: 20,
+    },
 
-  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
-  topHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: Colors.LIME,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#B8E62E",
-  },
-  welcomeSub: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: "rgba(13, 13, 13, 0.72)",
-  },
-  userNameText: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: Colors.BLACK,
-    marginTop: 1,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  proBadge: {
-    backgroundColor: Colors.BLACK,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  proText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.WHITE,
-    letterSpacing: 0.5,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginLeft: 2,
-  },
+    /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
+    topHeader: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: Colors.NAVBAR_BG,
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.NAVBAR_BORDER,
+    },
+    welcomeSub: {
+      fontFamily: "outfit",
+      fontSize: 13,
+      color: Colors.ON_NAVBAR_SUB,
+    },
+    userNameText: {
+      fontFamily: "outfit-bold",
+      fontSize: 17,
+      color: Colors.ON_NAVBAR || Colors.ON_ACCENT,
+      marginTop: 1,
+    },
+    headerRightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 0,
+    },
+    themeToggleBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: Colors.BLACK,
+    },
+    avatarWrapper: {
+      position: "relative",
+      marginLeft: 2,
+    },
   avatarCircle: {
     width: 38,
     height: 38,
@@ -596,13 +608,13 @@ const styles = StyleSheet.create({
 
   /* Display Headings */
   headingSection: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   displaySubHeading: {
     fontFamily: "outfit",
-    fontSize: 28,
+    fontSize: 20,
     color: Colors.MUTED,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   displayMainRow: {
     flexDirection: "row",
@@ -611,13 +623,13 @@ const styles = StyleSheet.create({
   },
   displayMainHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 32,
+    fontSize: 24,
     color: Colors.BLACK,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   superscriptBadge: {
     fontFamily: "outfit",
-    fontSize: 16,
+    fontSize: 13,
     color: Colors.MUTED,
   },
 
@@ -656,7 +668,7 @@ const styles = StyleSheet.create({
   limeSparkText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   heroGeneratorTitle: {
     fontFamily: "outfit-bold",
@@ -770,7 +782,7 @@ const styles = StyleSheet.create({
   limePersonalizedText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   grayTrackPill: {
     flexDirection: "row",

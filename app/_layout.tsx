@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import { UserDetailContext } from "../context/UserDetailContext";
 import { RoleProvider } from "../context/RoleContext";
+import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { useEffect, useState } from "react";
 import { Platform, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { QUICKSAND_FONT_MAP } from "../constant/Fonts";
@@ -24,6 +25,22 @@ const applyGlobalQuicksandDefaults = () => {
 };
 
 applyGlobalQuicksandDefaults();
+
+function ThemedStack({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Stack
+      key={fontsLoaded ? "quicksand-loaded" : "quicksand-fallback"}
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.BG_LIGHT },
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   // Load Google Font Quicksand (wght 300..700) for all app font aliases
@@ -72,19 +89,12 @@ export default function RootLayout() {
   }
 
   return (
-    <RoleProvider>
-      <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
-        <Stack
-          key={fontsLoaded ? "quicksand-loaded" : "quicksand-fallback"}
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: Colors.BG_LIGHT },
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </UserDetailContext.Provider>
-    </RoleProvider>
+    <ThemeProvider>
+      <RoleProvider>
+        <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
+          <ThemedStack fontsLoaded={Boolean(fontsLoaded)} />
+        </UserDetailContext.Provider>
+      </RoleProvider>
+    </ThemeProvider>
   );
 }

@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: "outfit-bold",
-    fontSize: 28,
+    fontSize: 24,
     color: Colors.BLACK,
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontFamily: "outfit",

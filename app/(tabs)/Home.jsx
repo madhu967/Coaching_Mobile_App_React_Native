@@ -16,6 +16,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { UserDetailContext } from "../../context/UserDetailContext";
+import { useTheme } from "../../context/ThemeContext";
 import { auth } from "../../config/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { getLmsStore, syncStudentToLmsRoster } from "../../services/lmsStore";
@@ -67,6 +68,8 @@ const HERO_SLIDES = [
 export default function Home() {
   const router = useRouter();
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const { themeMode, isIndigo, toggleTheme } = useTheme();
+  const styles = React.useMemo(() => getStyles(), [themeMode]);
 
   const [store, setStore] = useState(null);
   const [courses, setCourses] = useState([]);
@@ -192,12 +195,16 @@ export default function Home() {
   return (
     <View style={styles.container}>
       {/* ===============================================================
-          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, User Name, Streak, PRO, Avatar & Logout)
+          1. TOP HEADER NAVBAR (Full-bleed UI theme background, Good morning, User Name, Streak, Theme Toggle Icon, Avatar & Logout)
           =============================================================== */}
       <View style={styles.topHeader}>
-        <View>
-          <Text style={styles.welcomeSub}>{greeting}</Text>
-          <Text style={styles.userNameText}>{userName}</Text>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={styles.welcomeSub} numberOfLines={1}>
+            {greeting}
+          </Text>
+          <Text style={styles.userNameText} numberOfLines={1}>
+            {userName}
+          </Text>
         </View>
 
         <View style={styles.headerRightGroup}>
@@ -205,9 +212,18 @@ export default function Home() {
             <Text style={styles.streakPillText}>🔥 {learningStreakDays}d</Text>
           </View>
 
-          <View style={styles.proBadge}>
-            <Text style={styles.proText}>PRO</Text>
-          </View>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+            style={styles.themeToggleBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="color-palette"
+              size={18}
+              color={Colors.BLACK}
+            />
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => router.push("/Profile")}
@@ -398,12 +414,8 @@ export default function Home() {
                 activeOpacity={0.92}
                 onPress={() => router.push(slide.action)}
               >
-                {/* Left Column: Pill, Title, Subtitle, and CTA Button */}
+                {/* Left Column: Title, Subtitle, and CTA Button */}
                 <View style={styles.slideLeftColumn}>
-                  <View style={styles.slideBadge}>
-                    <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
-                    <Text style={styles.slideBadgeText}>{slide.badge}</Text>
-                  </View>
                   <Text style={styles.slideTitle} numberOfLines={2}>
                     {slide.title}
                   </Text>
@@ -412,7 +424,11 @@ export default function Home() {
                   </Text>
                   <View style={styles.slideCtaBtn}>
                     <Text style={styles.slideCtaText}>{slide.cta}</Text>
-                    <Ionicons name="arrow-forward" size={12} color={Colors.BLACK} />
+                    <Ionicons
+                      name="arrow-forward"
+                      size={12}
+                      color={Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT}
+                    />
                   </View>
                 </View>
 
@@ -462,7 +478,7 @@ export default function Home() {
             <View style={styles.cardTopRow}>
               <View style={styles.aiTagPill}>
                 <View style={styles.aiLimeDot}>
-                  <Ionicons name="sparkles" size={10} color={Colors.BLACK} />
+                  <Ionicons name="sparkles" size={10} color={Colors.ON_ACCENT} />
                 </View>
                 <View>
                   <Text style={styles.aiTagLabel}>Unique Feature</Text>
@@ -508,7 +524,7 @@ export default function Home() {
               {/* Primary Color Action Button */}
               <View style={styles.primaryActionBtn}>
                 <Text style={styles.primaryActionBtnText}>Create Course</Text>
-                <Ionicons name="arrow-forward" size={16} color={Colors.BLACK} />
+                <Ionicons name="arrow-forward" size={16} color={Colors.ON_ACCENT} />
               </View>
             </View>
           </TouchableOpacity>
@@ -760,7 +776,11 @@ export default function Home() {
             <Text style={styles.drillCardSub}>45 Mins Drill • Auto-submit</Text>
             <View style={styles.startDrillBtn}>
               <Text style={styles.startDrillText}>Start Drill</Text>
-              <Ionicons name="arrow-forward" size={11} color={Colors.BLACK} />
+              <Ionicons
+                name="arrow-forward"
+                size={11}
+                color={Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT}
+              />
             </View>
           </TouchableOpacity>
         </View>
@@ -780,7 +800,7 @@ export default function Home() {
             activeOpacity={0.85}
           >
             <View style={styles.quickTileLimeIcon}>
-              <Ionicons name="sparkles" size={18} color={Colors.BLACK} />
+              <Ionicons name="sparkles" size={18} color={Colors.ON_ACCENT} />
             </View>
             <Text style={styles.quickTileTitle}>AI Doubt Solver</Text>
             <Text style={styles.quickTileSub}>24/7 Step-by-step logic</Text>
@@ -804,167 +824,167 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.BG_LIGHT, // Clean minimalist off-white surface
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 110, // Clearance for floating island dock
-  },
+const getStyles = () =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.BG_LIGHT,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 110, // Clearance for floating island dock
+    },
 
-  /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
-  topHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: Colors.LIME, // Signature UI Theme Electric Lime
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#B8E62E",
-  },
-  welcomeSub: {
-    fontFamily: "outfit",
-    fontSize: 13,
-    color: "rgba(13, 13, 13, 0.72)",
-  },
-  userNameText: {
-    fontFamily: "outfit-bold",
-    fontSize: 18,
-    color: Colors.BLACK,
-    marginTop: 1,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  streakPill: {
-    backgroundColor: Colors.WHITE,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(13, 13, 13, 0.08)",
-  },
-  streakPillText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: "#EA580C",
-  },
-  proBadge: {
-    backgroundColor: Colors.BLACK,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  proText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.WHITE,
-    letterSpacing: 0.5,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginLeft: 2,
-  },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: Colors.BLACK,
-  },
-  avatarInitial: {
-    fontFamily: "outfit-bold",
-    fontSize: 15,
-    color: Colors.BLACK,
-  },
-  activeLimeDot: {
-    position: "absolute",
-    bottom: 0,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#16A34A",
-    borderWidth: 2,
-    borderColor: Colors.WHITE,
-  },
-  logoutNavBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.WHITE,
-    borderWidth: 1,
-    borderColor: "rgba(13, 13, 13, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    /* Top Header Navbar — Full-bleed edge-to-edge UI Theme Background */
+    topHeader: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: Colors.NAVBAR_BG,
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === "ios" ? 52 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.NAVBAR_BORDER,
+    },
+    welcomeSub: {
+      fontFamily: "outfit",
+      fontSize: 13,
+      color: Colors.ON_NAVBAR_SUB,
+    },
+    userNameText: {
+      fontFamily: "outfit-bold",
+      fontSize: 17,
+      color: Colors.ON_NAVBAR || Colors.ON_ACCENT,
+      marginTop: 1,
+    },
+    headerRightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 0,
+    },
+    streakPill: {
+      backgroundColor: Colors.WHITE,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.08)",
+    },
+    streakPillText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: "#EA580C",
+    },
+    themeToggleBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: Colors.BLACK,
+    },
+    avatarWrapper: {
+      position: "relative",
+      marginLeft: 2,
+    },
+    avatarCircle: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: Colors.WHITE,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: Colors.BLACK,
+    },
+    avatarInitial: {
+      fontFamily: "outfit-bold",
+      fontSize: 15,
+      color: Colors.BLACK,
+    },
+    activeLimeDot: {
+      position: "absolute",
+      bottom: 0,
+      right: -1,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: "#16A34A",
+      borderWidth: 2,
+      borderColor: Colors.WHITE,
+    },
+    logoutNavBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Colors.WHITE,
+      borderWidth: 1,
+      borderColor: "rgba(13, 13, 13, 0.12)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  /* Display Headings */
-  headingSection: {
-    marginBottom: 20,
-  },
-  displaySubHeading: {
-    fontFamily: "outfit",
-    fontSize: 28,
-    color: Colors.MUTED,
-    letterSpacing: -0.5,
-  },
-  displayMainRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-  },
-  displayMainHeading: {
-    fontFamily: "outfit-bold",
-    fontSize: 32,
-    color: Colors.BLACK,
-    letterSpacing: -0.8,
-  },
-  superscriptBadge: {
-    fontFamily: "outfit",
-    fontSize: 16,
-    color: Colors.MUTED,
-  },
+    /* Display Headings */
+    headingSection: {
+      marginBottom: 14,
+    },
+    displaySubHeading: {
+      fontFamily: "outfit",
+      fontSize: 20,
+      color: Colors.MUTED,
+      letterSpacing: -0.4,
+    },
+    displayMainRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 6,
+    },
+    displayMainHeading: {
+      fontFamily: "outfit-bold",
+      fontSize: 24,
+      color: Colors.BLACK,
+      letterSpacing: -0.6,
+    },
+    superscriptBadge: {
+      fontFamily: "outfit",
+      fontSize: 13,
+      color: Colors.MUTED,
+    },
 
-  /* Date & Roadmap Row */
-  dateAndRoadmapRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  dateBlock: {
-    alignItems: "flex-start",
-  },
-  limeDatePill: {
-    backgroundColor: Colors.LIME_BRIGHT, // Neon Chartreuse pill
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  limeDateText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: Colors.BLACK,
-  },
+    /* Date & Roadmap Row */
+    dateAndRoadmapRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 16,
+    },
+    dateBlock: {
+      alignItems: "flex-start",
+    },
+    limeDatePill: {
+      backgroundColor: Colors.LIME_BRIGHT,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 14,
+    },
+    limeDateText: {
+      fontFamily: "outfit-bold",
+      fontSize: 11,
+      color: Colors.ON_ACCENT,
+    },
   giantDateNumber: {
     fontFamily: "outfit-bold",
-    fontSize: 52,
+    fontSize: 38,
     color: Colors.BLACK,
-    lineHeight: 58,
+    lineHeight: 44,
     marginTop: 4,
-    letterSpacing: -1,
+    letterSpacing: -0.8,
   },
   attendanceMetaText: {
     fontFamily: "outfit",
@@ -1048,7 +1068,7 @@ const styles = StyleSheet.create({
   filterLimeDotText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   activeFilterPill: {
     flexDirection: "row",
@@ -1092,7 +1112,7 @@ const styles = StyleSheet.create({
   },
   slideCard: {
     width: SLIDE_WIDTH,
-    backgroundColor: Colors.DARK_CARD, // Pitch Obsidian Card
+    backgroundColor: Colors.DARK_CARD, // Pitch Obsidian / Deep Navy Card
     borderRadius: 26,
     padding: 20,
     flexDirection: "row",
@@ -1108,53 +1128,38 @@ const styles = StyleSheet.create({
   },
   slideLeftColumn: {
     flex: 1,
-    paddingRight: 10,
-  },
-  slideBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: Colors.LIME, // Electric Lime Tag
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 4,
-    marginBottom: 8,
-  },
-  slideBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.BLACK,
+    paddingRight: 12,
+    justifyContent: "center",
+    gap: 6,
   },
   slideTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 17,
     color: Colors.WHITE,
     lineHeight: 22,
     letterSpacing: -0.3,
   },
   slideSubtitle: {
     fontFamily: "outfit",
-    fontSize: 11,
-    color: "#9CA3AF",
-    marginTop: 4,
-    lineHeight: 15,
+    fontSize: 11.5,
+    color: "rgba(255, 255, 255, 0.78)",
+    lineHeight: 16,
   },
   slideCtaBtn: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: Colors.LIME, // Electric Lime Action Button
-    paddingHorizontal: 12,
+    backgroundColor: Colors.MODE === "monochrome" ? Colors.WHITE : Colors.LIME,
+    paddingHorizontal: 13,
     paddingVertical: 6,
     borderRadius: 12,
     gap: 5,
-    marginTop: 10,
+    marginTop: 6,
   },
   slideCtaText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.BLACK,
+    color: Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT,
   },
   slideRightColumn: {
     width: 100,
@@ -1287,10 +1292,10 @@ const styles = StyleSheet.create({
   },
   heroCourseLine: {
     fontFamily: "outfit-bold",
-    fontSize: 26,
+    fontSize: 21,
     color: Colors.BLACK,
-    lineHeight: 32,
-    letterSpacing: -0.5,
+    lineHeight: 27,
+    letterSpacing: -0.4,
   },
   wavyLineDecoration: {
     fontSize: 16,
@@ -1328,7 +1333,7 @@ const styles = StyleSheet.create({
   primaryActionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.LIME, // Vibrant Primary Color
+    backgroundColor: Colors.LIME,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 24,
@@ -1342,7 +1347,7 @@ const styles = StyleSheet.create({
   primaryActionBtnText: {
     fontFamily: "outfit-bold",
     fontSize: 13,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
 
   /* Active Course Section */
@@ -1626,7 +1631,7 @@ const styles = StyleSheet.create({
   accuracyLimePillText: {
     fontFamily: "outfit-bold",
     fontSize: 9,
-    color: Colors.BLACK,
+    color: Colors.ON_ACCENT,
   },
   testAccuracyBigNum: {
     fontFamily: "outfit-bold",
@@ -1663,13 +1668,13 @@ const styles = StyleSheet.create({
   drillCardSub: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: "#94949C",
+    color: "rgba(255, 255, 255, 0.72)",
     marginTop: 2,
   },
   startDrillBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.LIME, // Electric lime CTA on dark card
+    backgroundColor: Colors.MODE === "monochrome" ? Colors.WHITE : Colors.LIME,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -1680,7 +1685,7 @@ const styles = StyleSheet.create({
   startDrillText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.BLACK,
+    color: Colors.MODE === "monochrome" ? Colors.BLACK : Colors.ON_ACCENT,
   },
 
   /* Quick Tiles */

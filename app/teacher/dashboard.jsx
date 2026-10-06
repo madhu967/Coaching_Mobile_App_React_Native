@@ -34,7 +34,8 @@ import {
   getLoggedInTeacher,
   logoutTeacher,
 } from "../../services/teacherAuth";
-import { generateTestQuestionsWithAI } from "../../config/AiModel";
+import generateContentWithAI from "../../config/AiModel";
+import { generateTestQuestions } from "../../constant/Prompt";
 import { db } from "../../config/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 
@@ -402,36 +403,67 @@ export default function TeacherDashboard() {
   };
 
   const handleGenerateQuestionsWithAI = async () => {
-    const titleVal = newTestTitle.trim() || aiTopicPrompt.trim() || "Assessment Test";
-    const subjectVal = newTestSubject.trim() || aiTopicPrompt.trim() || "Computer Science";
-    const topicVal = aiTopicPrompt.trim() || `${titleVal} (${subjectVal})`;
+    const topicVal =
+      aiTopicPrompt.trim() ||
+      newTestTitle.trim() ||
+      newTestSubject.trim();
 
-    if (!newTestTitle.trim() && !newTestSubject.trim() && !aiTopicPrompt.trim()) {
-      Alert.alert(
-        "Enter Topic or Title",
-        "Please enter a Test Title, Subject, or AI Topic Prompt so Gemini AI knows what questions to generate."
-      );
+    if (!topicVal) {
+      alert("Please enter a Test Title, Subject, or AI Topic Prompt");
       return;
     }
 
-    setAiGenerating(true);
-    try {
-      const generated = await generateTestQuestionsWithAI({
-        title: titleVal,
-        subject: subjectVal,
-        topic: topicVal,
-        count: aiQuestionCount,
-      });
+    if (aiGenerating) {
+      alert("Please wait for the previous request to complete");
+      return;
+    }
 
-      if (Array.isArray(generated) && generated.length > 0) {
-        setTestQuestions((prev) => [...prev, ...generated]);
-        Alert.alert(
-          "Gemini AI Questions Ready! ✨",
-          `Generated and added ${generated.length} MCQ questions on "${topicVal}". Review them below before posting!`
-        );
-      }
-    } catch (err) {
-      Alert.alert("AI Error", "Could not generate questions right now. Try again.");
+    try {
+      setAiGenerating(true);
+      const PROMPT =
+        generateTestQuestions.idea +
+        `\nGenerate ${aiQuestionCount} questions.\n\nUser Input: ` +
+        topicVal;
+      const aiResponse = await generateContentWithAI(PROMPT);
+      console.log("Generated Test Questions:", aiResponse);
+
+      const cleaned = String(aiResponse || "")
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+      const parsedData = JSON.parse(cleaned);
+      const rawQuestions =
+        parsedData?.questions ||
+        (Array.isArray(parsedData) ? parsedData : []);
+
+      const formattedQuestions = rawQuestions.map((q, idx) => ({
+        id: `ai-q-${Date.now()}-${idx + 1}`,
+        question: q.question || q.title || `Question ${idx + 1} on ${topicVal}`,
+        options:
+          Array.isArray(q.options) && q.options.length >= 4
+            ? q.options.slice(0, 4)
+            : [
+                `Core principle of ${topicVal}`,
+                `Optimized implementation in ${topicVal}`,
+                "Alternative legacy approach",
+                "None of the above",
+              ],
+        correctIndex:
+          typeof q.correctIndex === "number" &&
+          q.correctIndex >= 0 &&
+          q.correctIndex <= 3
+            ? q.correctIndex
+            : 0,
+        explanation:
+          q.explanation ||
+          q.description ||
+          `Correct concept for ${topicVal}.`,
+      }));
+
+      setTestQuestions((prev) => [...prev, ...formattedQuestions]);
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      alert("Failed to generate questions. Please try again.");
     } finally {
       setAiGenerating(false);
     }
@@ -489,14 +521,47 @@ export default function TeacherDashboard() {
     try {
       let finalQuestions = [...testQuestions];
 
-      // If teacher didn't manually upload or pre-generate questions yet, auto-generate with Gemini AI on post
+      // If teacher didn't manually upload or pre-generate questions yet, auto-generate with Gemini AI using the exact same code pattern
       if (finalQuestions.length === 0) {
-        finalQuestions = await generateTestQuestionsWithAI({
-          title: newTestTitle.trim(),
-          subject: newTestSubject.trim(),
-          topic: aiTopicPrompt.trim() || newTestTitle.trim(),
-          count: aiQuestionCount || 5,
-        });
+        const topicVal =
+          aiTopicPrompt.trim() ||
+          `${newTestTitle.trim()} - ${newTestSubject.trim()}`;
+        const PROMPT =
+          generateTestQuestions.idea +
+          `\nGenerate ${aiQuestionCount || 5} questions.\n\nUser Input: ` +
+          topicVal;
+        const aiResponse = await generateContentWithAI(PROMPT);
+        const cleaned = String(aiResponse || "")
+          .replace(/```json/gi, "")
+          .replace(/```/g, "")
+          .trim();
+        const parsedData = JSON.parse(cleaned);
+        const rawQuestions =
+          parsedData?.questions ||
+          (Array.isArray(parsedData) ? parsedData : []);
+        finalQuestions = rawQuestions.map((q, idx) => ({
+          id: `ai-q-${Date.now()}-${idx + 1}`,
+          question: q.question || q.title || `Question ${idx + 1} on ${topicVal}`,
+          options:
+            Array.isArray(q.options) && q.options.length >= 4
+              ? q.options.slice(0, 4)
+              : [
+                  `Core principle of ${topicVal}`,
+                  `Optimized implementation in ${topicVal}`,
+                  "Alternative legacy approach",
+                  "None of the above",
+                ],
+          correctIndex:
+            typeof q.correctIndex === "number" &&
+            q.correctIndex >= 0 &&
+            q.correctIndex <= 3
+              ? q.correctIndex
+              : 0,
+          explanation:
+            q.explanation ||
+            q.description ||
+            `Correct concept for ${topicVal}.`,
+        }));
       }
 
       const passVal = Math.min(

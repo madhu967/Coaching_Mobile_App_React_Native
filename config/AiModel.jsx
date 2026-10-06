@@ -48,8 +48,6 @@ function getMockResponse() {
 }
 
 const CANDIDATE_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
   "gemini-3.8-flash",
   "gemini-3.8-pro",
 ];
@@ -61,6 +59,79 @@ function getFallbackResponse(userInput) {
     if (match && match[1]) {
       topicName = match[1].trim();
     }
+  }
+
+  // If the prompt is asking for test questions ("questions" / "correctIndex"), return questions JSON
+  if (
+    userInput &&
+    (userInput.includes('"questions"') ||
+      userInput.includes("multiple-choice") ||
+      userInput.includes("correctIndex"))
+  ) {
+    return JSON.stringify({
+      questions: [
+        {
+          id: `q-${Date.now()}-1`,
+          question: `What is the fundamental principle of ${topicName}?`,
+          options: [
+            `Modular architecture and clean design in ${topicName}`,
+            "Ignoring edge cases during execution",
+            "Using unindexed global variables only",
+            "Skipping validation checks",
+          ],
+          correctIndex: 0,
+          explanation: `Modular architecture and clean design form the core foundation of ${topicName}.`,
+        },
+        {
+          id: `q-${Date.now()}-2`,
+          question: `Which technique best optimizes performance when working with ${topicName}?`,
+          options: [
+            "Running blocking operations on the main thread",
+            `Using efficient data structures and minimizing redundant work in ${topicName}`,
+            "Disabling all caching mechanisms",
+            "Repeating identical computations in every loop",
+          ],
+          correctIndex: 1,
+          explanation: `Choosing optimal data structures and avoiding redundant work ensures high performance in ${topicName}.`,
+        },
+        {
+          id: `q-${Date.now()}-3`,
+          question: `When debugging an implementation of ${topicName}, what should be checked first?`,
+          options: [
+            "Only visual colors",
+            `Input constraints, boundary conditions, and state flow in ${topicName}`,
+            "Randomly renaming variables",
+            "Removing error handling blocks",
+          ],
+          correctIndex: 1,
+          explanation: `Verifying boundary conditions and state transitions catches the most common bugs in ${topicName}.`,
+        },
+        {
+          id: `q-${Date.now()}-4`,
+          question: `How should unexpected inputs and edge cases be handled in ${topicName}?`,
+          options: [
+            `Graceful error handling, validation, and safe fallbacks`,
+            "Allowing silent crashes in production",
+            "Hardcoding a single static test value",
+            "Deleting all logs",
+          ],
+          correctIndex: 0,
+          explanation: `Validation and graceful error handling make ${topicName} implementations reliable.`,
+        },
+        {
+          id: `q-${Date.now()}-5`,
+          question: `Which metric best evaluates a production solution in ${topicName}?`,
+          options: [
+            "Number of comments in the file",
+            `Time complexity, space efficiency, and accuracy in ${topicName}`,
+            "Length of file names",
+            "Creation date of the project",
+          ],
+          correctIndex: 1,
+          explanation: `Time complexity, memory efficiency, and accuracy are the standard engineering benchmarks for ${topicName}.`,
+        },
+      ],
+    });
   }
 
   return JSON.stringify({
@@ -89,13 +160,7 @@ export async function generateContentWithAI(userInput) {
     return responseCache[userInput];
   }
 
-  let ai = null;
-  try {
-    ai = getAIInstance();
-  } catch (e) {
-    return getFallbackResponse(userInput);
-  }
-
+  const ai = getAIInstance();
   const config = {
     generationConfig: {
       responseMimeType: "application/json",
@@ -133,7 +198,7 @@ export async function generateContentWithAI(userInput) {
     } catch (err) {
       console.warn(`⚠️ Model ${model} failed (${err.message}). Trying next fallback...`);
       // If 503 high demand, pause briefly before next attempt
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
   }
 

@@ -394,7 +394,9 @@ export default function AdminDashboard() {
       : "Good evening,";
 
   const adminName = "Platform Director";
-  const platformHealth = "92%";
+  const cohortOverallPct = lmsStore?.attendance?.overallPercentage ?? 0;
+  const cohortClassPct = lmsStore?.attendance?.classAttendancePercentage ?? 0;
+  const cohortTestPct = lmsStore?.attendance?.testAttendancePercentage ?? 0;
   const totalActivitiesCount =
     totalCoursesCount + totalStudentsCount + totalTeachersCount;
 
@@ -450,16 +452,18 @@ export default function AdminDashboard() {
       </View>
 
       {/* ===============================================================
-          3. DATE, PLATFORM HEALTH 92% & VERTICAL ROADMAP TREE
+          3. DATE, COHORT ATTENDANCE % & VERTICAL ROADMAP TREE
           =============================================================== */}
       <View style={styles.dateAndRoadmapRow}>
-        {/* Left: Electric Lime Date Pill + Health % Display */}
+        {/* Left: Electric Lime Date Pill + Cohort Attendance % Display */}
         <View style={styles.dateBlock}>
           <View style={styles.limeDatePill}>
-            <Text style={styles.limeDateText}>Platform Health</Text>
+            <Text style={styles.limeDateText}>Cohort Attendance</Text>
           </View>
-          <Text style={styles.giantDateNumber}>{platformHealth}</Text>
-          <Text style={styles.attendanceMetaText}>Verified Standing</Text>
+          <Text style={styles.giantDateNumber}>{cohortOverallPct}%</Text>
+          <Text style={styles.attendanceMetaText}>
+            Classes: {cohortClassPct}% • Tests: {cohortTestPct}%
+          </Text>
         </View>
 
         {/* Right: Vertical Tree Roadmap Selector (Coaching App Admin Hubs) */}

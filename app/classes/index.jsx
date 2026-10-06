@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -10,22 +10,25 @@ import {
   Platform,
   StatusBar,
   RefreshControl,
-  ScrollView,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
-import { getLmsStore, markClassAttendance } from "../../services/lmsStore";
+import { UserDetailContext } from "../../context/UserDetailContext";
+import { getLmsStore, syncStudentToLmsRoster } from "../../services/lmsStore";
 
 export default function LiveClassesScreen() {
   const router = useRouter();
+  const { userDetail } = useContext(UserDetailContext);
   const [classes, setClasses] = useState([]);
   const [filter, setFilter] = useState("all"); // 'all' | 'today' | 'upcoming' | 'recordings'
   const [refreshing, setRefreshing] = useState(false);
 
   const loadClasses = async () => {
     try {
-      const store = await getLmsStore();
+      const store = userDetail?.email
+        ? await syncStudentToLmsRoster(userDetail)
+        : await getLmsStore();
       setClasses(store.classes || []);
     } catch (e) {
       console.error("Live classes load error:", e);
@@ -36,12 +39,12 @@ export default function LiveClassesScreen() {
 
   useEffect(() => {
     loadClasses();
-  }, []);
+  }, [userDetail?.email]);
 
   useFocusEffect(
     useCallback(() => {
       loadClasses();
-    }, [])
+    }, [userDetail?.email])
   );
 
   const onRefresh = () => {
@@ -49,14 +52,11 @@ export default function LiveClassesScreen() {
     loadClasses();
   };
 
-  const handleJoinClass = async (classItem) => {
-    // 1. Mark attendance automatically upon joining
-    await markClassAttendance(classItem.id);
-    loadClasses();
-
+  const handleJoinClass = (classItem) => {
+    // Students CANNOT mark themselves present. Only the teacher marks attendance.
     Alert.alert(
-      "Joining Live Class 🎥",
-      `Connecting to "${classItem.title}" with ${classItem.teacherName}.\nAttendance recorded: PRESENT ✅`,
+      "Joining Live Class Stream 🎥",
+      `Connecting to "${classItem.title}" with ${classItem.teacherName}.\n\nAttendance Policy: Students cannot manually mark themselves present. Your teacher will mark you Present or Absent during roll call.`,
       [
         {
           text: "Open Video Room",
@@ -68,7 +68,7 @@ export default function LiveClassesScreen() {
             }
           },
         },
-        { text: "Done" },
+        { text: "Close" },
       ]
     );
   };
@@ -108,10 +108,10 @@ export default function LiveClassesScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Live Classes</Text>
         <TouchableOpacity
-          onPress={() => router.push("/notifications")}
+          onPress={() => router.push("/attendance")}
           style={styles.notifIconBtn}
         >
-          <Ionicons name="notifications-outline" size={20} color={Colors.PRIMARY} />
+          <Ionicons name="calendar-outline" size={20} color={Colors.PRIMARY} />
         </TouchableOpacity>
       </View>
 
@@ -156,6 +156,14 @@ export default function LiveClassesScreen() {
           }
           renderItem={({ item }) => {
             const isCompleted = item.status === "completed";
+            const studentKey = userDetail?.email
+              ? userDetail.email.trim().toLowerCase()
+              : "primary-student";
+            const isPresent =
+              item.studentAttendance?.[studentKey] === "Present" ||
+              item.studentAttendance?.["primary-student"] === "Present" ||
+              item.attendanceMarked === true;
+
             return (
               <View style={styles.classCard}>
                 {/* Header Tag */}
@@ -171,12 +179,26 @@ export default function LiveClassesScreen() {
                         <Text style={styles.liveNowText}>Today's Session</Text>
                       </View>
                     )}
-                    {item.attendanceMarked && (
-                      <View style={styles.attendanceBadge}>
-                        <Ionicons name="checkmark" size={12} color="#16a34a" />
-                        <Text style={styles.attendanceBadgeText}>Present</Text>
-                      </View>
-                    )}
+                    <View
+                      style={[
+                        styles.attendanceBadge,
+                        !isPresent && { backgroundColor: "#fef2f2" },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isPresent ? "checkmark-circle" : "close-circle"}
+                        size={13}
+                        color={isPresent ? "#16a34a" : "#dc2626"}
+                      />
+                      <Text
+                        style={[
+                          styles.attendanceBadgeText,
+                          !isPresent && { color: "#dc2626" },
+                        ]}
+                      >
+                        {isPresent ? "Present" : "Absent"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 

@@ -54,11 +54,11 @@ const Profile = () => {
     completedTopicsCount += list.length;
   });
 
-  const attendancePercent = lmsStore?.attendance?.overallPercentage || 92;
+  const attendancePercent = lmsStore?.attendance?.overallPercentage ?? 0;
   const recentScore =
     lmsStore?.tests?.find((t) => t.completed && t.recentScore)?.recentScore
-      ?.accuracy || 92;
-  const streakDays = lmsStore?.performance?.learningStreakDays || 6;
+      ?.accuracy ?? 0;
+  const streakDays = lmsStore?.performance?.learningStreakDays ?? 0;
 
   // Dynamic greeting based on time of day
   const currentHour = new Date().getHours();
@@ -181,10 +181,14 @@ const Profile = () => {
               <Text style={styles.statLabel}>Modules Done</Text>
             </View>
             <View style={styles.cellDivider} />
-            <View style={styles.statCell}>
+            <TouchableOpacity
+              style={styles.statCell}
+              onPress={() => router.push("/attendance")}
+              activeOpacity={0.8}
+            >
               <Text style={styles.statNum}>{attendancePercent}%</Text>
               <Text style={styles.statLabel}>Attendance</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.cellDivider} />
             <View style={styles.statCell}>
               <Text style={styles.statNum}>{recentScore}%</Text>

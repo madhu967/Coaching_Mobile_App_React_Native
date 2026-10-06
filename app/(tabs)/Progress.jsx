@@ -107,11 +107,11 @@ export default function PerformanceScreen() {
 
   // Performance calculations from LMS Store
   const perf = lmsStore?.performance || {
-    courseCompletionPercent: 74,
-    testAverageScore: 92,
-    attendancePercent: 92,
-    assignmentCompletionPercent: 100,
-    learningStreakDays: 6,
+    courseCompletionPercent: 0,
+    testAverageScore: 0,
+    attendancePercent: 0,
+    assignmentCompletionPercent: 0,
+    learningStreakDays: 0,
     strongSubjects: [
       "Data Structures & Algorithms (Graphs)",
       "Full-Stack Software Architecture",
@@ -134,11 +134,13 @@ export default function PerformanceScreen() {
   const courseCompletionCalculated =
     totalTopics > 0
       ? Math.round((completedTopics / totalTopics) * 100)
-      : perf.courseCompletionPercent;
+      : perf.courseCompletionPercent ?? 0;
 
   const activeCourse = courses.length > 0 ? courses[0] : null;
-  const attendancePercent = lmsStore?.attendance?.overallPercentage || 92;
-  const streakDays = perf.learningStreakDays || 6;
+  const attendancePercent = lmsStore?.attendance?.overallPercentage ?? 0;
+  const classAttendancePercent = lmsStore?.attendance?.classAttendancePercentage ?? 0;
+  const testAttendancePercent = lmsStore?.attendance?.testAttendancePercentage ?? 0;
+  const streakDays = perf.learningStreakDays ?? 0;
 
   // Weekly study consistency bar metrics
   const WEEK_DAYS = [
@@ -215,13 +217,19 @@ export default function PerformanceScreen() {
         <View style={styles.dateFilterRow}>
           <View style={styles.dateChip}>
             <Ionicons name="school-outline" size={13} color={Colors.BLACK} />
-            <Text style={styles.dateChipText}>Term 2026 • Verified Standing</Text>
+            <Text style={styles.dateChipText}>
+              Classes: {classAttendancePercent}% • Tests: {testAttendancePercent}%
+            </Text>
           </View>
 
-          <View style={styles.attendanceChip}>
+          <TouchableOpacity
+            style={styles.attendanceChip}
+            onPress={() => router.push("/attendance")}
+            activeOpacity={0.8}
+          >
             <Ionicons name="checkmark-circle" size={13} color={Colors.SUCCESS} />
-            <Text style={styles.attendanceChipText}>{attendancePercent}% Attendance</Text>
-          </View>
+            <Text style={styles.attendanceChipText}>{attendancePercent}% Combined →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ===============================================================

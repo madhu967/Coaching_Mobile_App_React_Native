@@ -16,7 +16,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { UserDetailContext } from "../../context/UserDetailContext";
-import { getLmsStore, markClassAttendance } from "../../services/lmsStore";
+import { getLmsStore, syncStudentToLmsRoster } from "../../services/lmsStore";
 import { getAllCourses } from "../../services/courseStorage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -75,7 +75,7 @@ export default function Home() {
   const loadDashboardData = async () => {
     try {
       const [lmsData, courseList] = await Promise.all([
-        getLmsStore(),
+        userDetail?.email ? syncStudentToLmsRoster(userDetail) : getLmsStore(),
         getAllCourses(),
       ]);
       setStore(lmsData);
@@ -89,12 +89,12 @@ export default function Home() {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [userDetail?.email]);
 
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [])
+    }, [userDetail?.email])
   );
 
   const onRefresh = () => {
@@ -127,15 +127,20 @@ export default function Home() {
   const userInitial = userName.charAt(0).toUpperCase();
 
   // Coaching App Core Data from LMS store & Course storage
-  const todayClasses = store?.classes?.filter((c) => c.isLiveToday) || [];
+  // Show all Teacher-created and Live classes to Students immediately
+  const todayClasses = (store?.classes || []).filter(
+    (c) => c.isLiveToday || c.createdByTeacher || c.status !== "completed"
+  );
   const upcomingClasses =
     store?.classes?.filter((c) => !c.isLiveToday && c.status === "upcoming") || [];
   const pendingAssignments =
     store?.assignments?.filter((a) => a.status === "pending") || [];
-  const attendancePercent = store?.attendance?.overallPercentage || 92;
+  const attendancePercent = store?.attendance?.overallPercentage ?? 0;
+  const classAttendancePercent = store?.attendance?.classAttendancePercentage ?? 0;
+  const testAttendancePercent = store?.attendance?.testAttendancePercentage ?? 0;
   const recentTest = store?.tests?.find((t) => t.completed && t.recentScore);
   const upcomingTests = store?.tests?.filter((t) => !t.completed) || [];
-  const learningStreakDays = store?.performance?.learningStreakDays || 6;
+  const learningStreakDays = store?.performance?.learningStreakDays ?? 0;
 
   // Active Enrolled Course Progress
   const activeCourse = courses.length > 0 ? courses[0] : null;
@@ -147,7 +152,7 @@ export default function Home() {
   const activeCoursePercent =
     activeCourseTotal > 0
       ? Math.round((activeCourseDoneCount / activeCourseTotal) * 100)
-      : 45;
+      : 0;
 
   const totalEventsCount =
     todayClasses.length +
@@ -155,13 +160,11 @@ export default function Home() {
     pendingAssignments.length +
     upcomingTests.length;
 
-  const handleJoinLiveClass = async (classItem) => {
-    await markClassAttendance(classItem.id);
-    loadDashboardData();
+  const handleJoinLiveClass = (classItem) => {
     Alert.alert(
-      "Connecting to Live Class 🎥",
-      `Welcome to "${classItem.title}" with ${classItem.teacherName}.\nAttendance recorded: PRESENT ✅`,
-      [{ text: "Enter Studio", onPress: () => router.push("/classes") }]
+      "Joining Live Class Stream 🎥",
+      `Welcome to "${classItem.title}" with ${classItem.teacherName}.\n\nNote: Students cannot manually mark attendance. Your teacher will mark you Present or Absent during class roll call.`,
+      [{ text: "Open Class Hub", onPress: () => router.push("/classes") }]
     );
   };
 
@@ -223,17 +226,23 @@ export default function Home() {
         </View>
 
         {/* ===============================================================
-            3. DATE, ATTENDANCE 92% & SUBJECT ROADMAP SELECTOR ROW
+            3. DATE, ATTENDANCE % & SUBJECT ROADMAP SELECTOR ROW
             =============================================================== */}
         <View style={styles.dateAndRoadmapRow}>
-          {/* Left: Electric Lime Date Pill + Attendance % Display */}
-          <View style={styles.dateBlock}>
+          {/* Left: Electric Lime Date Pill + Combined & Separate Attendance Display */}
+          <TouchableOpacity
+            style={styles.dateBlock}
+            onPress={() => router.push("/attendance")}
+            activeOpacity={0.8}
+          >
             <View style={styles.limeDatePill}>
-              <Text style={styles.limeDateText}>Attendance</Text>
+              <Text style={styles.limeDateText}>Attendance →</Text>
             </View>
             <Text style={styles.giantDateNumber}>{attendancePercent}%</Text>
-            <Text style={styles.attendanceMetaText}>Verified Standing</Text>
-          </View>
+            <Text style={styles.attendanceMetaText}>
+              Classes: {classAttendancePercent}% • Tests: {testAttendancePercent}%
+            </Text>
+          </TouchableOpacity>
 
           {/* Right: Vertical Tree Roadmap Selector (Coaching App Subjects) */}
           <View style={styles.roadmapTreeContainer}>
@@ -559,31 +568,60 @@ export default function Home() {
         </View>
 
         {todayClasses.length > 0 ? (
-          todayClasses.map((item) => (
-            <View key={item.id} style={styles.classCard}>
-              <View style={styles.classCardLeft}>
-                <View style={styles.classLiveIndicator}>
-                  <View style={styles.pulseLiveDot} />
-                  <Text style={styles.classLiveText}>LIVE NOW</Text>
+          todayClasses.map((item) => {
+            const studentKey = userDetail?.email
+              ? userDetail.email.trim().toLowerCase()
+              : "primary-student";
+            const isPresent =
+              item.studentAttendance?.[studentKey] === "Present" ||
+              item.studentAttendance?.["primary-student"] === "Present" ||
+              item.attendanceMarked === true;
+            return (
+              <View key={item.id} style={styles.classCard}>
+                <View style={styles.classCardLeft}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <View style={[styles.classLiveIndicator, { marginBottom: 0 }]}>
+                      <View style={styles.pulseLiveDot} />
+                      <Text style={styles.classLiveText}>LIVE NOW</Text>
+                    </View>
+                    <View
+                      style={{
+                        backgroundColor: isPresent ? "#dcfce7" : "#fee2e2",
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: "outfit-bold",
+                          fontSize: 10,
+                          color: isPresent ? "#166534" : "#991b1b",
+                        }}
+                      >
+                        {isPresent ? "Present ✅" : "Absent"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.classTitleText} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.classInstructorText}>
+                    {item.teacherName} • {item.subject} • {item.time}
+                  </Text>
                 </View>
-                <Text style={styles.classTitleText} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={styles.classInstructorText}>
-                  {item.teacherName} • {item.subject} • {item.time}
-                </Text>
-              </View>
 
-              <TouchableOpacity
-                style={styles.joinStudioBlackBtn}
-                onPress={() => handleJoinLiveClass(item)}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.joinStudioText}>Join Class</Text>
-                <Ionicons name="videocam" size={13} color={Colors.WHITE} />
-              </TouchableOpacity>
-            </View>
-          ))
+                <TouchableOpacity
+                  style={styles.joinStudioBlackBtn}
+                  onPress={() => handleJoinLiveClass(item)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.joinStudioText}>Join Class</Text>
+                  <Ionicons name="videocam" size={13} color={Colors.WHITE} />
+                </TouchableOpacity>
+              </View>
+            );
+          })
         ) : (
           <TouchableOpacity
             style={styles.classCard}
@@ -664,13 +702,19 @@ export default function Home() {
             <View style={styles.testAccuracyHeader}>
               <Text style={styles.testAccuracyLabel}>Recent Score</Text>
               <View style={styles.accuracyLimePill}>
-                <Text style={styles.accuracyLimePillText}>Verified</Text>
+                <Text style={styles.accuracyLimePillText}>
+                  {recentTest ? "Attended ✅" : "0 Attended"}
+                </Text>
               </View>
             </View>
             <Text style={styles.testAccuracyBigNum}>
-              {recentTest ? `${recentTest.recentScore.accuracy}%` : "92%"}
+              {recentTest ? `${recentTest.recentScore.accuracy}%` : "0%"}
             </Text>
-            <Text style={styles.testAccuracySub}>Instant results with auto-timer</Text>
+            <Text style={styles.testAccuracySub}>
+              {recentTest
+                ? "Test attendance: Present"
+                : "Complete a test to record score & attendance"}
+            </Text>
           </View>
 
           {/* Practice Drill CTA Tile */}

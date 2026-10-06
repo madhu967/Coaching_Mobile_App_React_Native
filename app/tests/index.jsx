@@ -103,6 +103,8 @@ export default function TestsListScreen() {
         }
         renderItem={({ item }) => {
           const score = item.recentScore;
+          const isAttended =
+            item.completed || item.studentAttendance?.["primary-student"] === "Present";
           return (
             <View style={styles.testCard}>
               <View style={styles.testCardHeader}>
@@ -110,18 +112,37 @@ export default function TestsListScreen() {
                   <Text style={styles.typeBadgeText}>{item.type}</Text>
                 </View>
 
-                {item.completed ? (
-                  <View style={styles.scoreBadge}>
-                    <Ionicons name="ribbon" size={13} color="#16a34a" />
-                    <Text style={styles.scoreBadgeText}>
-                      Score: {score?.score}/{score?.total} ({score?.accuracy}%)
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <View
+                    style={[
+                      styles.scoreBadge,
+                      !isAttended && { backgroundColor: "#fef2f2" },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isAttended ? "checkmark-circle" : "close-circle"}
+                      size={13}
+                      color={isAttended ? "#16a34a" : "#dc2626"}
+                    />
+                    <Text
+                      style={[
+                        styles.scoreBadgeText,
+                        !isAttended && { color: "#dc2626" },
+                      ]}
+                    >
+                      {isAttended ? "Present" : "Absent"}
                     </Text>
                   </View>
-                ) : (
-                  <View style={styles.pendingBadge}>
-                    <Text style={styles.pendingBadgeText}>Pending</Text>
-                  </View>
-                )}
+
+                  {item.completed && score ? (
+                    <View style={styles.scoreBadge}>
+                      <Ionicons name="ribbon" size={13} color="#16a34a" />
+                      <Text style={styles.scoreBadgeText}>
+                        {score.score}/{score.total} ({score.accuracy}%)
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
 
               <Text style={styles.testTitle}>{item.title}</Text>

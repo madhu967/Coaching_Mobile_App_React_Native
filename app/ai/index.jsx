@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: Platform.OS === "ios" ? 40 : 20,
+    marginTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     marginBottom: 16,
   },
   backBtn: {
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   badgePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8f2ff",
+    backgroundColor: Colors.LIME,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
   badgePillText: {
     fontFamily: "outfit-bold",
     fontSize: 12,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   pageTitle: {
     fontFamily: "outfit-bold",

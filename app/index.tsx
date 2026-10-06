@@ -19,44 +19,41 @@ import { doc, getDoc } from "firebase/firestore";
 import { UserDetailContext } from "../context/UserDetailContext";
 import { auth } from "../config/firebaseConfig";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const ONBOARDING_SLIDES = [
   {
     id: "slide_1",
-    tag: "AI CURRICULUM",
-    badge: "✨ Adaptive Learning Engine",
+    tag: "AI NEEDS-BASED ENGINE",
+    badge: "✨ Personalized Course Generator",
     title: "Learning Designed\nAround Your Needs",
     subtitle:
-      "Choose your goal, target date, and daily study hours. Our AI crafts an individualized syllabus tailored specifically to your learning curve.",
+      "Select your goal, target date, and daily study hours. Our AI crafts an individualized syllabus tailored specifically to your learning curve.",
     image: "https://cdn-icons-png.flaticon.com/512/8649/8649595.png",
-    accentColor: Colors.PRIMARY,
-    glowColor: "#EEF2FF",
-    pills: ["🎯 Goal-Driven", "⚡ Dynamic Roadmap", "📅 Daily Pacing"],
+    glowColor: Colors.LIME_LIGHT,
+    pills: ["🎯 Goal-Driven", "⚡ Adaptive Pacing", "📅 Custom Milestones"],
   },
   {
     id: "slide_2",
-    tag: "LIVE & DOUBTS",
-    badge: "🎥 Interactive Masterclasses",
-    title: "Expert Live Classes\n& 24/7 AI Doubt Solver",
+    tag: "LIVE STUDIOS & DOUBTS",
+    badge: "🎥 Masterclasses & AI Doubts",
+    title: "Interactive Live Classes\n& 24/7 AI Doubt Solver",
     subtitle:
-      "Join interactive video studios hosted by top faculty, access archived replays, and snap or type any question for step-by-step doubt resolution.",
+      "Join interactive video studios hosted by top faculty, access class replays, and snap or type any question for step-by-step doubt resolution.",
     image: "https://cdn-icons-png.flaticon.com/512/8649/8649635.png",
-    accentColor: "#dc2626",
-    glowColor: "#FEF2F2",
-    pills: ["🔴 Live Studios", "🤖 Instant AI Tutor", "📼 Full Replays"],
+    glowColor: "#E0F7FE",
+    pills: ["🔴 Live Studios", "🤖 Instant AI Tutor", "📝 Faculty Remarks"],
   },
   {
     id: "slide_3",
-    tag: "EXAM EXCELLENCE",
-    badge: "🏆 Proven Performance",
-    title: "Timed Mock Drills\n& Weak-Topic Radar",
+    tag: "AUTHENTIC EXAM DRILLS",
+    badge: "⏱️ Timed Mock Drills",
+    title: "Simulated Tests &\nWeak-Topic Radar",
     subtitle:
-      "Simulate authentic exam conditions with auto-submitting timers, precision accuracy analytics, and targeted drills on your weak topics.",
+      "Experience authentic exam conditions with auto-submitting timers, precision accuracy analytics, and targeted drills on your weak topics.",
     image: "https://cdn-icons-png.flaticon.com/512/8649/8649626.png",
-    accentColor: "#16a34a",
-    glowColor: "#F0FDF4",
-    pills: ["⏱️ Timed Drills", "📊 Accuracy Radar", "✅ Verified Mastery"],
+    glowColor: Colors.LIME_LIGHT,
+    pills: ["⏱️ Timed Drills", "📊 Accuracy Radar", "🏆 Verified Standing"],
   },
 ];
 
@@ -131,34 +128,36 @@ export default function Index() {
         />
       </View>
 
-      {/* Slide Badge Pill */}
-      <View style={styles.badgePill}>
-        <Ionicons name="sparkles" size={12} color={Colors.PRIMARY} />
-        <Text style={styles.badgePillText}>{item.badge}</Text>
-      </View>
+      {/* Typography & Pills Block */}
+      <View style={styles.slideContentBlock}>
+        {/* Slide Badge Pill with Electric Lime */}
+        <View style={styles.badgePill}>
+          <Ionicons name="sparkles" size={12} color={Colors.BLACK} />
+          <Text style={styles.badgePillText}>{item.badge}</Text>
+        </View>
 
-      {/* Typography Block */}
-      <Text style={styles.slideTitle}>{item.title}</Text>
-      <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
+        <Text style={styles.slideTitle}>{item.title}</Text>
+        <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
 
-      {/* 3 Highlight Value Chips */}
-      <View style={styles.pillsRow}>
-        {item.pills.map((pill, idx) => (
-          <View key={idx} style={styles.featurePill}>
-            <Text style={styles.featurePillText}>{pill}</Text>
-          </View>
-        ))}
+        {/* Highlight Value Chips */}
+        <View style={styles.pillsRow}>
+          {item.pills.map((pill, idx) => (
+            <View key={idx} style={styles.featurePill}>
+              <Text style={styles.featurePillText}>{pill}</Text>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Top Header Bar with Brand & Skip Option */}
+      {/* Top Header Bar */}
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <View style={styles.brandIconBox}>
-            <Ionicons name="school" size={18} color={Colors.PRIMARY} />
+            <Ionicons name="school" size={17} color={Colors.BLACK} />
           </View>
           <Text style={styles.brandTitle}>Coaching Guru</Text>
         </View>
@@ -166,7 +165,7 @@ export default function Index() {
         {!isLastSlide ? (
           <TouchableOpacity onPress={handleSkip} style={styles.skipBtn} activeOpacity={0.7}>
             <Text style={styles.skipBtnText}>Skip</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.GRAY} />
+            <Ionicons name="chevron-forward" size={13} color={Colors.MUTED} />
           </TouchableOpacity>
         ) : (
           <View style={styles.stepBadge}>
@@ -175,7 +174,7 @@ export default function Index() {
         )}
       </View>
 
-      {/* Horizontal Paging Walkthrough FlatList */}
+      {/* Full-Screen Horizontal Walkthrough FlatList */}
       <FlatList
         ref={flatListRef}
         data={ONBOARDING_SLIDES}
@@ -193,10 +192,11 @@ export default function Index() {
           setActiveIndex(newIndex);
         }}
         renderItem={renderSlideItem}
-        style={styles.sliderList}
+        style={styles.fullScreenSlider}
+        contentContainerStyle={{ flexGrow: 1 }}
       />
 
-      {/* Bottom Control & Action Section */}
+      {/* Bottom Controls & Navigation */}
       <View style={styles.bottomSection}>
         {/* Pagination Dots */}
         <View style={styles.dotsRow}>
@@ -211,7 +211,7 @@ export default function Index() {
           ))}
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Buttons in Pitch Black */}
         {isLastSlide ? (
           <>
             <TouchableOpacity
@@ -253,8 +253,8 @@ export default function Index() {
             style={styles.staffItem}
             activeOpacity={0.7}
           >
-            <Ionicons name="school-outline" size={13} color="#16a34a" />
-            <Text style={[styles.staffText, { color: "#16a34a" }]}>Teacher Portal</Text>
+            <Ionicons name="school-outline" size={13} color={Colors.BLACK} />
+            <Text style={styles.staffText}>Teacher Portal</Text>
           </TouchableOpacity>
 
           <View style={styles.staffDot} />
@@ -264,8 +264,8 @@ export default function Index() {
             style={styles.staffItem}
             activeOpacity={0.7}
           >
-            <Ionicons name="shield-checkmark-outline" size={13} color="#0284c7" />
-            <Text style={[styles.staffText, { color: "#0284c7" }]}>Admin Console</Text>
+            <Ionicons name="shield-checkmark-outline" size={13} color={Colors.BLACK} />
+            <Text style={styles.staffText}>Admin Console</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -276,13 +276,13 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG_LIGHT, // Full screen clean off-white
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 8,
   },
@@ -295,13 +295,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.PRIMARY_LIGHT,
+    backgroundColor: Colors.LIME,
     alignItems: "center",
     justifyContent: "center",
   },
   brandTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 17,
+    fontSize: 16,
     color: Colors.BLACK,
   },
   skipBtn: {
@@ -311,84 +311,95 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
-    backgroundColor: "#f8fafc",
+    backgroundColor: Colors.WHITE,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
   },
   skipBtnText: {
     fontFamily: "outfit-bold",
     fontSize: 12,
-    color: Colors.GRAY,
+    color: Colors.MUTED,
   },
   stepBadge: {
-    backgroundColor: Colors.PRIMARY_LIGHT,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: Colors.LIME_LIGHT,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 10,
   },
   stepBadgeText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
-  sliderList: {
-    flexGrow: 0,
+
+  /* Full Screen Slider */
+  fullScreenSlider: {
+    flex: 1,
   },
   slideItem: {
     width: SCREEN_WIDTH,
-    paddingHorizontal: 24,
+    flex: 1,
+    justifyContent: "space-around",
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
   },
   visualContainer: {
     width: SCREEN_WIDTH - 60,
-    height: 200,
+    height: SCREEN_HEIGHT * 0.28,
+    maxHeight: 220,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    marginVertical: 6,
   },
   ambientGlow: {
     position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    opacity: 0.9,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    opacity: 0.85,
   },
   slideImage: {
-    width: 150,
-    height: 150,
+    width: 160,
+    height: 160,
+  },
+  slideContentBlock: {
+    alignItems: "center",
+    width: "100%",
+    paddingBottom: 8,
   },
   badgePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.PRIMARY_LIGHT,
+    backgroundColor: Colors.LIME,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 14,
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   badgePillText: {
     fontFamily: "outfit-bold",
     fontSize: 11,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   slideTitle: {
     fontFamily: "outfit-bold",
-    fontSize: 22,
+    fontSize: 24,
     color: Colors.BLACK,
     textAlign: "center",
-    lineHeight: 28,
+    lineHeight: 30,
     marginBottom: 8,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   slideSubtitle: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: "#64748b",
+    color: Colors.MUTED,
     textAlign: "center",
     lineHeight: 19,
-    paddingHorizontal: 10,
-    marginBottom: 14,
+    paddingHorizontal: 12,
+    marginBottom: 16,
   },
   pillsRow: {
     flexDirection: "row",
@@ -397,39 +408,41 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   featurePill: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: Colors.WHITE,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: Colors.BORDER_LIGHT,
   },
   featurePillText: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: "#475569",
+    color: Colors.BLACK,
   },
+
+  /* Bottom Controls */
   bottomSection: {
     paddingHorizontal: 24,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
-    paddingTop: 10,
+    paddingTop: 8,
   },
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 8,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: Colors.BORDER,
   },
   activeDot: {
     width: 24,
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK,
     borderRadius: 4,
   },
   navRow: {
@@ -439,14 +452,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK, // Signature pitch black
     height: 52,
-    borderRadius: 16,
+    borderRadius: 18,
     gap: 8,
     elevation: 3,
-    shadowColor: Colors.PRIMARY,
+    shadowColor: Colors.BLACK,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
   },
   continueBtnText: {
@@ -458,14 +471,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK,
     height: 54,
-    borderRadius: 16,
+    borderRadius: 18,
     gap: 8,
     elevation: 4,
-    shadowColor: Colors.PRIMARY,
+    shadowColor: Colors.BLACK,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
   },
   getStartedBtnText: {
@@ -475,42 +488,40 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   signInBtn: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: "center",
     marginTop: 4,
   },
   signInBtnText: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: "#64748b",
+    color: Colors.MUTED,
   },
   signInBold: {
     fontFamily: "outfit-bold",
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   staffFooter: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    marginTop: 10,
+    alignItems: "center",
+    marginTop: 12,
     gap: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
   },
   staffItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
   staffText: {
     fontFamily: "outfit-bold",
-    fontSize: 11,
+    fontSize: 12,
+    color: Colors.BLACK,
   },
   staffDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: "#cbd5e1",
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.BORDER,
   },
 });

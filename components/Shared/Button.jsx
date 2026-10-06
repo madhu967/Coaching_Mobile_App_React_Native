@@ -4,7 +4,7 @@ import Colors from "../../constant/Colors";
 
 export default function Button({
   text,
-  type = "fill",
+  type = "fill", // 'fill' (Pitch Black) | 'lime' (Electric Lime) | 'outline' (White / Bordered)
   onPress,
   loading = false,
   style,
@@ -12,6 +12,7 @@ export default function Button({
   icon,
 }) {
   const isFill = type === "fill";
+  const isLime = type === "lime";
 
   return (
     <TouchableOpacity
@@ -20,14 +21,16 @@ export default function Button({
       activeOpacity={0.82}
       style={[
         styles.buttonBase,
-        isFill ? styles.buttonFill : styles.buttonOutline,
+        isFill && styles.buttonFill,
+        isLime && styles.buttonLime,
+        type === "outline" && styles.buttonOutline,
         style,
       ]}
     >
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={isFill ? Colors.WHITE : Colors.PRIMARY}
+          color={isFill ? Colors.WHITE : Colors.BLACK}
         />
       ) : (
         <>
@@ -35,7 +38,9 @@ export default function Button({
           <Text
             style={[
               styles.buttonText,
-              isFill ? styles.buttonTextFill : styles.buttonTextOutline,
+              isFill && styles.buttonTextFill,
+              isLime && styles.buttonTextLime,
+              type === "outline" && styles.buttonTextOutline,
               textStyle,
             ]}
           >
@@ -52,34 +57,45 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
   buttonFill: {
-    backgroundColor: Colors.PRIMARY,
-    shadowColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK, // Signature Pitch Black
+    shadowColor: Colors.BLACK,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  buttonLime: {
+    backgroundColor: Colors.LIME_BRIGHT, // Signature Electric Lime
+    shadowColor: Colors.LIME,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 3,
   },
   buttonOutline: {
     backgroundColor: Colors.WHITE,
     borderWidth: 1.5,
-    borderColor: Colors.PRIMARY,
+    borderColor: Colors.BORDER_LIGHT,
   },
   buttonText: {
     fontFamily: "outfit-bold",
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
   },
   buttonTextFill: {
     color: Colors.WHITE,
   },
+  buttonTextLime: {
+    color: Colors.BLACK,
+  },
   buttonTextOutline: {
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
 });

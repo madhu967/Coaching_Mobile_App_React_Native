@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  StatusBar,
   Image,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: Platform.OS === "ios" ? 40 : 20,
+    marginTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     marginBottom: 16,
   },
   backBtn: {
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   badgePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8f2ff",
+    backgroundColor: Colors.LIME,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -471,7 +472,7 @@ const styles = StyleSheet.create({
   badgePillText: {
     fontFamily: "outfit-bold",
     fontSize: 12,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
   pageTitle: {
     fontFamily: "outfit-bold",
@@ -516,9 +517,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   radioItemSelected: {
-    backgroundColor: "#f0f7ff",
-    borderColor: "#bfdbfe",
-    borderWidth: 1,
+    backgroundColor: Colors.LIME_LIGHT,
+    borderColor: Colors.LIME,
+    borderWidth: 1.5,
   },
   radioText: {
     fontFamily: "outfit",

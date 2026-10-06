@@ -7,9 +7,11 @@ import {
   ToastAndroid,
   Alert,
   Platform,
+  StatusBar,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -85,7 +87,7 @@ const SignUp = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: Colors.WHITE }}
+      style={{ flex: 1, backgroundColor: Colors.BG_LIGHT }}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -98,19 +100,35 @@ const SignUp = () => {
           onPress={() => router.replace("/")}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={20} color={Colors.PRIMARY} />
+          <Ionicons name="arrow-back" size={20} color={Colors.BLACK} />
           <Text style={styles.backBtnText}>Back to Welcome</Text>
         </TouchableOpacity>
 
         {/* Brand Header */}
         <View style={styles.headerBox}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="sparkles" size={28} color={Colors.PRIMARY} />
-          </View>
+          <Text style={styles.headerSub}>Start Your Journey</Text>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>
             Join Coaching Guru to access personalized learning curriculums
           </Text>
+        </View>
+
+        {/* ===============================================================
+            HERO IMAGE FROM INTERNET AT TOP OF FORM (As explicitly requested)
+            =============================================================== */}
+        <View style={styles.heroImageWrapper}>
+          <Image
+            source={{
+              uri: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&auto=format&fit=crop&q=80",
+            }}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+          <View style={styles.heroOverlay} />
+          <View style={styles.heroImageBadge}>
+            <Ionicons name="sparkles" size={12} color={Colors.BLACK} />
+            <Text style={styles.heroImageBadgeText}>50,000+ Active Scholars</Text>
+          </View>
         </View>
 
         {/* Input Form Card */}
@@ -118,7 +136,7 @@ const SignUp = () => {
           {/* Full Name */}
           <Text style={styles.inputLabel}>Full Name</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={18} color={Colors.GRAY} />
+            <Ionicons name="person-outline" size={18} color={Colors.MUTED} />
             <TextInput
               placeholder="e.g. Alex Morgan"
               placeholderTextColor={Colors.LIGHT_GRAY}
@@ -131,7 +149,7 @@ const SignUp = () => {
           {/* Email */}
           <Text style={[styles.inputLabel, { marginTop: 14 }]}>Email Address</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={18} color={Colors.GRAY} />
+            <Ionicons name="mail-outline" size={18} color={Colors.MUTED} />
             <TextInput
               placeholder="e.g. alex@example.com"
               placeholderTextColor={Colors.LIGHT_GRAY}
@@ -146,7 +164,7 @@ const SignUp = () => {
           {/* Password */}
           <Text style={[styles.inputLabel, { marginTop: 14 }]}>Password</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={18} color={Colors.GRAY} />
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.MUTED} />
             <TextInput
               placeholder="Choose a strong password"
               placeholderTextColor={Colors.LIGHT_GRAY}
@@ -162,12 +180,12 @@ const SignUp = () => {
               <Ionicons
                 name={showPassword ? "eye-off-outline" : "eye-outline"}
                 size={18}
-                color={Colors.GRAY}
+                color={Colors.MUTED}
               />
             </TouchableOpacity>
           </View>
 
-          {/* Create Account Button */}
+          {/* Create Account Button (Pitch Black Capsule) */}
           <View style={{ marginTop: 22 }}>
             <Button
               text="Create Free Account"
@@ -181,7 +199,7 @@ const SignUp = () => {
           <View style={styles.footerLinkRow}>
             <Text style={styles.footerText}>Already have an account?</Text>
             <TouchableOpacity onPress={() => router.push("/auth/Signin")}>
-              <Text style={styles.footerHighlight}> Sign In Here</Text>
+              <Text style={styles.footerHighlight}> Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -194,73 +212,105 @@ export default SignUp;
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 54 : 36,
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 40,
-    backgroundColor: Colors.WHITE,
   },
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    marginBottom: 16,
     alignSelf: "flex-start",
-    marginBottom: 20,
   },
   backBtnText: {
     fontFamily: "outfit-bold",
-    fontSize: 14,
-    color: Colors.PRIMARY,
+    fontSize: 13,
+    color: Colors.BLACK,
   },
   headerBox: {
-    alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  logoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.PRIMARY_LIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
+  headerSub: {
+    fontFamily: "outfit",
+    fontSize: 13,
+    color: Colors.MUTED,
   },
   title: {
     fontFamily: "outfit-bold",
-    fontSize: 26,
+    fontSize: 28,
     color: Colors.BLACK,
+    letterSpacing: -0.6,
   },
   subtitle: {
     fontFamily: "outfit",
-    fontSize: 14,
-    color: Colors.GRAY,
-    textAlign: "center",
-    marginTop: 6,
+    fontSize: 13,
+    color: Colors.MUTED,
+    marginTop: 4,
+    lineHeight: 18,
   },
-  formCard: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 20,
-    padding: 20,
+
+  /* Internet Image Hero at top of form */
+  heroImageWrapper: {
+    height: 155,
+    borderRadius: 24,
+    overflow: "hidden",
+    position: "relative",
+    marginBottom: 18,
+    backgroundColor: Colors.BLACK,
     borderWidth: 1,
     borderColor: Colors.BORDER_LIGHT,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(13, 13, 13, 0.35)",
+  },
+  heroImageBadge: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 5,
+  },
+  heroImageBadgeText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.BLACK,
+  },
+
+  /* Form Card */
+  formCard: {
+    backgroundColor: Colors.WHITE,
+    borderRadius: 26,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   inputLabel: {
     fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: Colors.DARK,
+    fontSize: 12,
+    color: Colors.BLACK,
     marginBottom: 6,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.BG_GRAY,
-    borderWidth: 1,
-    borderColor: Colors.BORDER,
-    borderRadius: 12,
+    backgroundColor: Colors.CHIP_BG,
+    borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
     gap: 10,
@@ -268,7 +318,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontFamily: "outfit",
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.BLACK,
   },
   footerLinkRow: {
@@ -279,12 +329,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: "outfit",
-    fontSize: 14,
-    color: Colors.GRAY,
+    fontSize: 13,
+    color: Colors.MUTED,
   },
   footerHighlight: {
     fontFamily: "outfit-bold",
-    fontSize: 14,
-    color: Colors.PRIMARY,
+    fontSize: 13,
+    color: Colors.BLACK,
   },
 });

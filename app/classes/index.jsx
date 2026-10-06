@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
   Platform,
+  StatusBar,
   RefreshControl,
   ScrollView,
 } from "react-native";
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 35,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
     paddingBottom: 12,
     backgroundColor: Colors.WHITE,
     borderBottomWidth: 1,

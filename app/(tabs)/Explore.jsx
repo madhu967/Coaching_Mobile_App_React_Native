@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -16,34 +16,108 @@ import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Colors from "../../constant/Colors";
 import { getAllCourses, removeCourse } from "../../services/courseStorage";
-import Button from "../../components/Shared/Button";
+import { UserDetailContext } from "../../context/UserDetailContext";
 
-// High-resolution Unsplash course covers
+// High-resolution Unsplash covers matching coaching topics
 const COURSE_COVERS = [
   "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=700&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=700&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=700&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=700&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=700&auto=format&fit=crop&q=80",
 ];
 
-const CATEGORIES = ["All Courses", "Personalized", "In Progress", "Completed"];
+// Coaching Academic Categories (NO irrelevant UX/Marketing strings)
+const CATEGORIES = [
+  "All Tracks",
+  "Computer Science",
+  "Mobile Dev",
+  "System Design",
+  "AI & ML",
+  "Personalized",
+];
+
+// Curated Coaching Masterclasses Catalog Fallback
+const CURATED_COACHING_TRACKS = [
+  {
+    id: "curated-1",
+    courseTitle: "Data Structures & Algorithms: Graphs & Dynamic Programming",
+    category: "Computer Science",
+    goal: "Ace Tech Interviews & Competitive Coding",
+    topicCount: 8,
+    isPersonalized: false,
+    topics: [
+      { id: "t1", title: "Asymptotic Notation & Space-Time Complexity" },
+      { id: "t2", title: "Arrays, Hash Tables & Sliding Window Patterns" },
+      { id: "t3", title: "Binary Trees, BST & Tree Traversals" },
+      { id: "t4", title: "Graph Theory: BFS, DFS & Topological Sort" },
+      { id: "t5", title: "Dynamic Programming: 1D & 2D Memoization" },
+    ],
+  },
+  {
+    id: "curated-2",
+    courseTitle: "Advanced React Native & New Architecture Mastery",
+    category: "Mobile Dev",
+    goal: "Ship Scalable Cross-Platform Mobile Applications",
+    topicCount: 6,
+    isPersonalized: false,
+    topics: [
+      { id: "m1", title: "Expo Router: Nested Stack & Dynamic Routing" },
+      { id: "m2", title: "Turbomodules & Fabric Renderer Deep Dive" },
+      { id: "m3", title: "State Management with Context & AsyncStorage" },
+      { id: "m4", title: "Fluid 60FPS Animations with Reanimated" },
+    ],
+  },
+  {
+    id: "curated-3",
+    courseTitle: "Distributed Systems & Cloud Microservices Architecture",
+    category: "System Design",
+    goal: "Design Fault-Tolerant Systems for 10M+ Users",
+    topicCount: 7,
+    isPersonalized: false,
+    topics: [
+      { id: "s1", title: "Horizontal Scaling & Load Balancing Algorithms" },
+      { id: "s2", title: "Database Sharding, Replication & CAP Theorem" },
+      { id: "s3", title: "Event-Driven Architecture with Kafka & Queues" },
+      { id: "s4", title: "Distributed Caching with Redis & CDN Layers" },
+    ],
+  },
+  {
+    id: "curated-4",
+    courseTitle: "Foundational AI Engineering: Gemini API & LLM Agents",
+    category: "AI & ML",
+    goal: "Build Agentic AI Workflows & Structured Decoders",
+    topicCount: 6,
+    isPersonalized: false,
+    topics: [
+      { id: "a1", title: "Prompt Engineering & Few-Shot In-Context Learning" },
+      { id: "a2", title: "Gemini Function Calling & Structured JSON Schemas" },
+      { id: "a3", title: "Retrieval-Augmented Generation (RAG) Pipelines" },
+      { id: "a4", title: "Multi-Agent Orchestration & Tool Execution" },
+    ],
+  },
+];
 
 const Explore = () => {
   const router = useRouter();
+  const { userDetail } = useContext(UserDetailContext);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedCourseId, setExpandedCourseId] = useState(null);
-  const [activeCategory, setActiveCategory] = useState("All Courses");
+  const [activeCategory, setActiveCategory] = useState("All Tracks");
 
   const fetchCourses = async () => {
     try {
       const data = await getAllCourses();
-      setCourses(data || []);
+      if (data && data.length > 0) {
+        setCourses(data);
+      } else {
+        setCourses(CURATED_COACHING_TRACKS);
+      }
     } catch (err) {
       console.error("Failed to load courses:", err);
+      setCourses(CURATED_COACHING_TRACKS);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,42 +161,94 @@ const Explore = () => {
     );
   };
 
+  const userName =
+    userDetail?.name ||
+    userDetail?.email?.split("@")[0] ||
+    "Scholar";
+
+  const userInitial = userName.charAt(0).toUpperCase();
+
   const filteredCourses = courses.filter((c) => {
+    if (activeCategory === "All Tracks") return true;
     if (activeCategory === "Personalized") return !!c.isPersonalized;
-    const completedList = Array.isArray(c.completedTopicIds) ? c.completedTopicIds : [];
-    const totalCount = c.topics?.length || c.topicCount || 0;
-    if (activeCategory === "Completed") return totalCount > 0 && completedList.length >= totalCount;
-    if (activeCategory === "In Progress") return completedList.length > 0 && completedList.length < totalCount;
+    const title = c.courseTitle?.toLowerCase() || "";
+    const cat = c.category?.toLowerCase() || "";
+    if (activeCategory === "Computer Science") {
+      return title.includes("data") || title.includes("algorithm") || title.includes("computer") || cat.includes("computer");
+    }
+    if (activeCategory === "Mobile Dev") {
+      return title.includes("react") || title.includes("mobile") || title.includes("native") || cat.includes("mobile");
+    }
+    if (activeCategory === "System Design") {
+      return title.includes("system") || title.includes("architecture") || title.includes("microservice") || cat.includes("system");
+    }
+    if (activeCategory === "AI & ML") {
+      return title.includes("ai") || title.includes("gemini") || title.includes("learning") || cat.includes("ai");
+    }
     return true;
   });
 
   const renderHeader = () => (
     <View style={styles.listHeaderContainer}>
-      {/* Featured AI Generator Hero Banner */}
-      <TouchableOpacity
-        style={styles.heroBanner}
-        onPress={() => router.push("/courses/personalized")}
-        activeOpacity={0.9}
-      >
-        <Image
-          source={{
-            uri: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=900&auto=format&fit=crop&q=80",
-          }}
-          style={styles.heroImage}
-        />
-        <View style={styles.heroOverlay} />
-        <View style={styles.heroContent}>
-          <View style={styles.heroPill}>
-            <Ionicons name="sparkles" size={12} color={Colors.WHITE} />
-            <Text style={styles.heroPillText}>Needs-Based Generator</Text>
+      {/* Top Header */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.welcomeSub}>Academic Catalog</Text>
+          <Text style={styles.userNameText}>{userName}</Text>
+        </View>
+
+        <View style={styles.headerRightGroup}>
+          <View style={styles.proBadge}>
+            <Text style={styles.proText}>PRO</Text>
           </View>
-          <Text style={styles.heroTitle}>Build a Course to Your Needs</Text>
-          <Text style={styles.heroSub}>
-            Set your Goal, Skill Level, Study Time & Target Date
+          <TouchableOpacity
+            onPress={() => router.push("/Profile")}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{userInitial}</Text>
+            </View>
+            <View style={styles.activeLimeDot} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Big Display Title */}
+      <View style={styles.headingSection}>
+        <Text style={styles.displaySubHeading}>Coaching Curriculums</Text>
+        <View style={styles.displayMainRow}>
+          <Text style={styles.displayMainHeading}>All Courses</Text>
+          <Text style={styles.superscriptBadge}>({courses.length})</Text>
+        </View>
+      </View>
+
+      {/* Needs-Based Hero Banner with Electric Lime & Pitch Black Capsule */}
+      <TouchableOpacity
+        style={styles.heroGeneratorCard}
+        onPress={() => router.push("/courses/personalized")}
+        activeOpacity={0.92}
+      >
+        <View style={styles.heroGeneratorLeft}>
+          <View style={styles.limeSparkBadge}>
+            <Ionicons name="sparkles" size={12} color={Colors.BLACK} />
+            <Text style={styles.limeSparkText}>AI Needs-Based Engine</Text>
+          </View>
+          <Text style={styles.heroGeneratorTitle}>
+            Build Custom Course{"\n"}Around Your Needs
           </Text>
-          <View style={styles.heroCtaRow}>
-            <Text style={styles.heroCtaText}>Start Customizing</Text>
-            <Ionicons name="arrow-forward-circle" size={16} color={Colors.WHITE} />
+          <Text style={styles.heroGeneratorSub}>
+            Set Target Date, Goal & Daily Study Pacing
+          </Text>
+          <View style={styles.heroBlackBtn}>
+            <Text style={styles.heroBlackBtnText}>Customize Now</Text>
+            <Ionicons name="arrow-forward" size={13} color={Colors.WHITE} />
+          </View>
+        </View>
+
+        <View style={styles.heroGeneratorRight}>
+          <View style={styles.limeAuraCircle}>
+            <Ionicons name="school" size={38} color={Colors.BLACK} />
           </View>
         </View>
       </TouchableOpacity>
@@ -134,44 +260,38 @@ const Explore = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item}
-          contentContainerStyle={{ paddingHorizontal: 20 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => setActiveCategory(item)}
-              style={[
-                styles.categoryChip,
-                activeCategory === item && styles.categoryChipActive,
-              ]}
-            >
-              <Text
+          renderItem={({ item }) => {
+            const isActive = activeCategory === item;
+            return (
+              <TouchableOpacity
+                onPress={() => setActiveCategory(item)}
                 style={[
-                  styles.categoryChipText,
-                  activeCategory === item && styles.categoryChipTextActive,
+                  styles.categoryChip,
+                  isActive && styles.categoryChipActive,
                 ]}
+                activeOpacity={0.8}
               >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
+                {isActive && <View style={styles.activeLimeChipDot} />}
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    isActive && styles.categoryChipTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
         />
-      </View>
-
-      {/* Section Subheading */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionHeading}>
-          {activeCategory} ({filteredCourses.length})
-        </Text>
       </View>
     </View>
   );
 
   const renderCourseItem = ({ item, index }) => {
     const isExpanded = expandedCourseId === item.id;
-    const coverUri =
-      item.coverImage || COURSE_COVERS[index % COURSE_COVERS.length];
-
     const topics = item.topics || [];
-    const totalCount = item.topicCount || topics.length || 0;
+    const totalCount = item.topicCount || topics.length || 6;
     const completedList = Array.isArray(item.completedTopicIds)
       ? item.completedTopicIds
       : [];
@@ -180,125 +300,98 @@ const Explore = () => {
       totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
     return (
-      <View style={styles.courseCard}>
-        {/* Cover Image Header with Badges (Zero text cramming) */}
-        <View style={styles.cardCoverContainer}>
-          <Image
-            source={{ uri: coverUri }}
-            style={styles.cardCoverImage}
-            resizeMode="cover"
-          />
-          <View style={styles.cardCoverOverlay} />
-
-          <View style={styles.cardCoverTopRow}>
+      <View style={styles.courseCardWrapper}>
+        <View style={styles.courseCard}>
+          {/* Card Top Row: Badge Pill & Delete Action */}
+          <View style={styles.courseCardTopRow}>
             {item.isPersonalized ? (
-              <View style={styles.personalizedPill}>
-                <Ionicons name="sparkles" size={11} color={Colors.WHITE} />
-                <Text style={styles.personalizedPillText}>AI Customized</Text>
+              <View style={styles.limePersonalizedPill}>
+                <Ionicons name="sparkles" size={11} color={Colors.BLACK} />
+                <Text style={styles.limePersonalizedText}>AI Tailored</Text>
               </View>
             ) : (
-              <View style={styles.standardPill}>
-                <Ionicons name="book" size={11} color={Colors.WHITE} />
-                <Text style={styles.standardPillText}>Fast Track</Text>
+              <View style={styles.grayTrackPill}>
+                <Ionicons name="book-outline" size={11} color={Colors.BLACK} />
+                <Text style={styles.grayTrackText}>
+                  {item.category || "Coaching Curriculum"}
+                </Text>
               </View>
             )}
 
             <TouchableOpacity
               onPress={() => handleDeleteCourse(item)}
-              style={styles.deleteBtnCircle}
+              style={styles.trashCircleBtn}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Ionicons name="trash-outline" size={14} color="#ef4444" />
+              <Ionicons name="trash-outline" size={14} color="#EF4444" />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Card Body - Completely spacious with clear hierarchy */}
-        <View style={styles.cardBody}>
-          <Text style={styles.cardCourseTitle} numberOfLines={2}>
+          {/* Title & Goal */}
+          <Text style={styles.courseTitle} numberOfLines={2}>
             {item.courseTitle || "Untitled Course"}
           </Text>
 
           {item.goal ? (
-            <View style={styles.goalContainer}>
-              <Ionicons name="disc-outline" size={13} color={Colors.PRIMARY} />
-              <Text style={styles.cardCourseGoal} numberOfLines={1}>
-                {item.goal}
-              </Text>
+            <View style={styles.goalRow}>
+              <Text style={styles.goalText}>🎯 {item.goal}</Text>
             </View>
           ) : null}
 
-          {/* Meta metrics badges */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaBadge}>
-              <Ionicons name="layers-outline" size={13} color={Colors.PRIMARY} />
-              <Text style={styles.metaBadgeText}>{totalCount} Modules</Text>
+          {/* Progress Bar & Metrics */}
+          <View style={styles.progressRow}>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(progressPercent || 25, 100)}%` },
+                ]}
+              />
             </View>
-
-            <View style={[styles.metaBadge, styles.metaBadgeDone]}>
-              <Ionicons name="checkmark-done" size={13} color="#16a34a" />
-              <Text style={[styles.metaBadgeText, { color: "#16a34a" }]}>
-                {completedCount} Done
-              </Text>
-            </View>
-
-            <View style={[styles.metaBadge, styles.metaBadgeProgress]}>
-              <Ionicons name="trending-up" size={13} color={Colors.DARK} />
-              <Text style={[styles.metaBadgeText, { color: Colors.DARK }]}>
-                {progressPercent}%
-              </Text>
-            </View>
+            <Text style={styles.progressText}>
+              {completedCount} / {totalCount} Done ({progressPercent}%)
+            </Text>
           </View>
 
-          {/* Progress Bar Track */}
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${Math.min(progressPercent, 100)}%` },
-              ]}
-            />
-          </View>
-
-          {/* Action Footer */}
-          <View style={styles.cardFooter}>
+          {/* Card Bottom Action Buttons */}
+          <View style={styles.cardActionsRow}>
             <TouchableOpacity
-              style={styles.toggleTopicsBtn}
+              style={styles.viewCurriculumBtn}
               onPress={() => toggleExpand(item.id)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.toggleTopicsText}>
-                {isExpanded ? "Hide Curriculum" : `Curriculum (${topics.length || totalCount})`}
+              <Text style={styles.viewCurriculumText}>
+                {isExpanded ? "Hide Modules" : `Syllabus (${topics.length || totalCount})`}
               </Text>
               <Ionicons
                 name={isExpanded ? "chevron-up" : "chevron-down"}
-                size={15}
-                color={Colors.PRIMARY}
+                size={14}
+                color={Colors.BLACK}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.studyNowBtn}
+              style={styles.continueBlackBtn}
               onPress={() => router.push("/Progress")}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
             >
-              <Text style={styles.studyNowBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={13} color={Colors.WHITE} />
+              <Text style={styles.continueBlackBtnText}>Study</Text>
+              <Ionicons name="arrow-forward" size={12} color={Colors.WHITE} />
             </TouchableOpacity>
           </View>
 
           {/* Expanded Curriculum Topics Accordion */}
           {isExpanded && (
             <View style={styles.accordionContainer}>
-              <Text style={styles.curriculumHeading}>Course Modules & Lessons:</Text>
+              <Text style={styles.curriculumHeading}>Track Modules & Syllabus:</Text>
               {topics.map((t, idx) => {
                 const isTopicDone = completedList.includes(t.id);
                 return (
                   <View key={t.id || idx} style={styles.topicRow}>
                     <Ionicons
                       name={isTopicDone ? "checkmark-circle" : "ellipse-outline"}
-                      size={18}
-                      color={isTopicDone ? "#16a34a" : Colors.LIGHT_GRAY}
+                      size={17}
+                      color={isTopicDone ? Colors.SUCCESS : Colors.MUTED}
                       style={{ marginTop: 2 }}
                     />
                     <View style={{ flex: 1, marginLeft: 10 }}>
@@ -328,33 +421,9 @@ const Explore = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Header - Safe Area for Android & iOS */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Course Explorer 📚</Text>
-          <Text style={styles.headerSubtitle}>
-            Curated curriculums & personalized learning paths
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.addCourseHeaderBtn}
-          onPress={() => router.push("/courses/personalized")}
-          activeOpacity={0.85}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="sparkles" size={14} color={Colors.WHITE} />
-          <Text style={styles.addCourseHeaderText}>Personalize</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content */}
       {loading ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={Colors.PRIMARY} />
-          <Text style={{ marginTop: 12, color: Colors.GRAY, fontFamily: "outfit" }}>
-            Loading your courses...
-          </Text>
+          <ActivityIndicator size="large" color={Colors.BLACK} />
         </View>
       ) : (
         <FlatList
@@ -362,35 +431,22 @@ const Explore = () => {
           keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           ListHeaderComponent={renderHeader}
           renderItem={renderCourseItem}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="compass-outline" size={60} color={Colors.LIGHT_GRAY} />
-              <Text style={styles.emptyTitle}>No Courses Found</Text>
+              <Ionicons name="compass-outline" size={48} color={Colors.MUTED} />
+              <Text style={styles.emptyTitle}>No Tracks Found</Text>
               <Text style={styles.emptySubtitle}>
-                No courses under "{activeCategory}". Generate a customized syllabus tailored to your exact study goals!
+                No courses match "{activeCategory}". Generate a customized syllabus to your target!
               </Text>
-              <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
-                <Button
-                  text="✨ Create Course Based on Needs"
-                  type="fill"
-                  onPress={() => router.push("/courses/personalized")}
-                />
-                <Button
-                  text="+ Quick AI Course"
-                  type="outline"
-                  onPress={() => router.push("/addCourse")}
-                />
-              </View>
+              <TouchableOpacity
+                style={styles.emptyCreateBtn}
+                onPress={() => router.push("/courses/personalized")}
+              >
+                <Text style={styles.emptyCreateBtnText}>✨ Generate Custom Course</Text>
+              </TouchableOpacity>
             </View>
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[Colors.PRIMARY]}
-            />
           }
         />
       )}
@@ -403,326 +459,368 @@ export default Explore;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.WHITE, // Pure white background
+    backgroundColor: Colors.BG_LIGHT,
   },
-  header: {
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
+    paddingBottom: 110,
+  },
+  centerBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listHeaderContainer: {
+    marginBottom: 20,
+  },
+
+  /* Top Header */
+  topHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 54 : StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 46,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_LIGHT,
-    backgroundColor: Colors.WHITE,
+    marginBottom: 20,
   },
-  headerTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 22,
-    color: Colors.BLACK,
-  },
-  headerSubtitle: {
+  welcomeSub: {
     fontFamily: "outfit",
-    fontSize: 12,
-    color: Colors.GRAY,
-    marginTop: 2,
+    fontSize: 13,
+    color: Colors.MUTED,
   },
-  addCourseHeaderBtn: {
+  userNameText: {
+    fontFamily: "outfit-bold",
+    fontSize: 18,
+    color: Colors.BLACK,
+    marginTop: 1,
+  },
+  headerRightGroup: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.PRIMARY,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: 8,
+  },
+  proBadge: {
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  proText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.WHITE,
+    letterSpacing: 0.5,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginLeft: 2,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.BORDER_LIGHT,
+  },
+  avatarInitial: {
+    fontFamily: "outfit-bold",
+    fontSize: 16,
+    color: Colors.BLACK,
+  },
+  activeLimeDot: {
+    position: "absolute",
+    bottom: 0,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.LIME,
+    borderWidth: 2,
+    borderColor: Colors.WHITE,
+  },
+
+  /* Display Headings */
+  headingSection: {
+    marginBottom: 20,
+  },
+  displaySubHeading: {
+    fontFamily: "outfit",
+    fontSize: 28,
+    color: Colors.MUTED,
+    letterSpacing: -0.5,
+  },
+  displayMainRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  displayMainHeading: {
+    fontFamily: "outfit-bold",
+    fontSize: 32,
+    color: Colors.BLACK,
+    letterSpacing: -0.8,
+  },
+  superscriptBadge: {
+    fontFamily: "outfit",
+    fontSize: 16,
+    color: Colors.MUTED,
+  },
+
+  /* Hero Generator Banner */
+  heroGeneratorCard: {
+    backgroundColor: Colors.WHITE,
+    borderRadius: 26,
+    padding: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  heroGeneratorLeft: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  limeSparkBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: Colors.LIME,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+    marginBottom: 8,
+  },
+  limeSparkText: {
+    fontFamily: "outfit-bold",
+    fontSize: 10,
+    color: Colors.BLACK,
+  },
+  heroGeneratorTitle: {
+    fontFamily: "outfit-bold",
+    fontSize: 17,
+    color: Colors.BLACK,
+    lineHeight: 22,
+    letterSpacing: -0.4,
+  },
+  heroGeneratorSub: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.MUTED,
+    marginTop: 4,
+  },
+  heroBlackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
+    gap: 6,
+    marginTop: 12,
+  },
+  heroBlackBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 11,
+    color: Colors.WHITE,
+  },
+  heroGeneratorRight: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  limeAuraCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Colors.LIME,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Categories */
+  categoryRow: {
+    marginBottom: 6,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.WHITE,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
     gap: 5,
   },
-  addCourseHeaderText: {
-    fontFamily: "outfit-bold",
+  categoryChipActive: {
+    backgroundColor: Colors.BLACK,
+    borderColor: Colors.BLACK,
+  },
+  activeLimeChipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.LIME,
+  },
+  categoryChipText: {
+    fontFamily: "outfit",
     fontSize: 12,
+    color: Colors.MUTED,
+  },
+  categoryChipTextActive: {
+    fontFamily: "outfit-bold",
     color: Colors.WHITE,
   },
 
-  listHeaderContainer: {
-    paddingTop: 14,
+  /* Course Card */
+  courseCardWrapper: {
+    marginBottom: 16,
   },
-
-  /* Hero Banner */
-  heroBanner: {
-    height: 140,
-    marginHorizontal: 20,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: Colors.DARK,
-    elevation: 3,
-    shadowColor: Colors.PRIMARY,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
+  courseCard: {
+    backgroundColor: Colors.WHITE,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
     shadowRadius: 6,
+    elevation: 2,
   },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
+  courseCardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
-  },
-  heroContent: {
-    flex: 1,
-    padding: 16,
-    justifyContent: "center",
-  },
-  heroPill: {
+  limePersonalizedPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.PRIMARY,
-    alignSelf: "flex-start",
+    backgroundColor: Colors.LIME,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     gap: 4,
-    marginBottom: 6,
   },
-  heroPillText: {
+  limePersonalizedText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.WHITE,
+    color: Colors.BLACK,
   },
-  heroTitle: {
-    fontFamily: "outfit-bold",
-    fontSize: 17,
-    color: Colors.WHITE,
-  },
-  heroSub: {
-    fontFamily: "outfit",
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.85)",
-    marginTop: 3,
-  },
-  heroCtaRow: {
+  grayTrackPill: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    gap: 4,
-  },
-  heroCtaText: {
-    fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: Colors.WHITE,
-  },
-
-  /* Category Filter */
-  categoryRow: {
-    paddingVertical: 14,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.BG_GRAY,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_LIGHT,
-  },
-  categoryChipActive: {
-    backgroundColor: Colors.PRIMARY,
-    borderColor: Colors.PRIMARY,
-  },
-  categoryChipText: {
-    fontFamily: "outfit-bold",
-    fontSize: 12,
-    color: Colors.GRAY,
-  },
-  categoryChipTextActive: {
-    color: Colors.WHITE,
-  },
-
-  sectionHeaderRow: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
-  },
-  sectionHeading: {
-    fontFamily: "outfit-bold",
-    fontSize: 14,
-    color: Colors.GRAY,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-
-  /* Course Card */
-  courseCard: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 18,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_LIGHT,
-    overflow: "hidden",
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardCoverContainer: {
-    height: 110,
-    justifyContent: "flex-start",
-    padding: 12,
-    backgroundColor: Colors.DARK,
-  },
-  cardCoverImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cardCoverOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
-  },
-  cardCoverTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  personalizedPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.CHIP_BG,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
     gap: 4,
   },
-  personalizedPillText: {
+  grayTrackText: {
     fontFamily: "outfit-bold",
     fontSize: 10,
-    color: Colors.WHITE,
+    color: Colors.BLACK,
   },
-  standardPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0284c7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  standardPillText: {
-    fontFamily: "outfit-bold",
-    fontSize: 10,
-    color: Colors.WHITE,
-  },
-  deleteBtnCircle: {
+  trashCircleBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    backgroundColor: "#FEF2F2",
     alignItems: "center",
     justifyContent: "center",
   },
-
-  /* Card Body */
-  cardBody: {
-    padding: 14,
-  },
-  cardCourseTitle: {
+  courseTitle: {
     fontFamily: "outfit-bold",
     fontSize: 16,
-    color: "#0f172a",
-    lineHeight: 22,
+    color: Colors.BLACK,
+    letterSpacing: -0.3,
   },
-  goalContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
+  goalRow: {
     marginTop: 4,
-    marginBottom: 8,
   },
-  cardCourseGoal: {
+  goalText: {
     fontFamily: "outfit",
     fontSize: 12,
-    color: Colors.PRIMARY,
-    flex: 1,
+    color: Colors.MUTED,
   },
-  metaRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  metaBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.BG_GRAY,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  metaBadgeDone: {
-    backgroundColor: "#f0fdf4",
-  },
-  metaBadgeProgress: {
-    backgroundColor: "#f8fafc",
-  },
-  metaBadgeText: {
-    fontFamily: "outfit-bold",
-    fontSize: 11,
-    color: Colors.GRAY,
+  progressRow: {
+    marginTop: 10,
   },
   progressTrack: {
     height: 6,
-    backgroundColor: Colors.BORDER_LIGHT,
+    backgroundColor: Colors.CHIP_BG,
     borderRadius: 3,
     overflow: "hidden",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.LIME,
     borderRadius: 3,
   },
-  cardFooter: {
+  progressText: {
+    fontFamily: "outfit",
+    fontSize: 11,
+    color: Colors.MUTED,
+  },
+  cardActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 4,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.BORDER_LIGHT,
   },
-  toggleTopicsBtn: {
+  viewCurriculumBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  toggleTopicsText: {
+  viewCurriculumText: {
     fontFamily: "outfit-bold",
     fontSize: 12,
-    color: Colors.PRIMARY,
+    color: Colors.BLACK,
   },
-  studyNowBtn: {
+  continueBlackBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.PRIMARY,
+    backgroundColor: Colors.BLACK,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 12,
     gap: 4,
   },
-  studyNowBtnText: {
+  continueBlackBtnText: {
     fontFamily: "outfit-bold",
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.WHITE,
   },
 
   /* Accordion */
   accordionContainer: {
     marginTop: 12,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: Colors.BORDER_LIGHT,
   },
   curriculumHeading: {
     fontFamily: "outfit-bold",
-    fontSize: 13,
-    color: Colors.BLACK,
+    fontSize: 11,
+    color: Colors.MUTED,
+    letterSpacing: 0.5,
     marginBottom: 8,
   },
   topicRow: {
@@ -733,43 +831,47 @@ const styles = StyleSheet.create({
   topicTitle: {
     fontFamily: "outfit-bold",
     fontSize: 13,
-    color: Colors.DARK,
+    color: Colors.BLACK,
   },
   topicTitleDone: {
+    color: Colors.MUTED,
     textDecorationLine: "line-through",
-    color: Colors.GRAY,
   },
   topicDesc: {
     fontFamily: "outfit",
     fontSize: 11,
-    color: Colors.GRAY,
+    color: Colors.MUTED,
     marginTop: 1,
   },
 
-  centerBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 60,
-  },
+  /* Empty State */
   emptyContainer: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingVertical: 40,
+    gap: 8,
   },
   emptyTitle: {
     fontFamily: "outfit-bold",
     fontSize: 18,
     color: Colors.BLACK,
-    marginTop: 12,
   },
   emptySubtitle: {
     fontFamily: "outfit",
     fontSize: 13,
-    color: Colors.GRAY,
+    color: Colors.MUTED,
     textAlign: "center",
-    marginTop: 4,
-    lineHeight: 18,
+    maxWidth: 280,
+  },
+  emptyCreateBtn: {
+    backgroundColor: Colors.BLACK,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+  emptyCreateBtnText: {
+    fontFamily: "outfit-bold",
+    fontSize: 12,
+    color: Colors.WHITE,
   },
 });

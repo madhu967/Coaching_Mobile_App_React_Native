@@ -18,6 +18,7 @@ import { db } from "../config/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import { UserDetailContext } from "../context/UserDetailContext";
 import { auth } from "../config/firebaseConfig";
+import BrandLogo from "../components/Common/BrandLogo";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -185,7 +186,7 @@ export default function Index() {
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <View style={styles.brandIconBox}>
-            <Ionicons name="school" size={17} color={Colors.BLACK} />
+            <BrandLogo size={20} />
           </View>
           <Text style={styles.brandTitle}>Coaching Guru</Text>
         </View>
@@ -320,10 +321,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   brandIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.LIME,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: Colors.WHITE,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_LIGHT,
     alignItems: "center",
     justifyContent: "center",
   },

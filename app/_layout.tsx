@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { QUICKSAND_FONT_MAP } from "../constant/Fonts";
 import Colors from "../constant/Colors";
+import BrandLogo from "../components/Common/BrandLogo";
 
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -40,12 +41,13 @@ class RootErrorBoundary extends React.Component<
         <View
           style={{
             flex: 1,
-            backgroundColor: "#F6F7FA",
+            backgroundColor: "#FFFFFF",
             alignItems: "center",
             justifyContent: "center",
             padding: 24,
           }}
         >
+          <BrandLogo size={72} style={{ marginBottom: 16 }} />
           <Text
             style={{
               fontSize: 18,
@@ -135,12 +137,12 @@ export default function RootLayout() {
       <View
         style={{
           flex: 1,
-          backgroundColor: Colors.BG_LIGHT || "#F6F7FA",
+          backgroundColor: "#FFFFFF",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ActivityIndicator size="small" color={Colors.BLACK || "#0D0D0D"} />
+        <BrandLogo size={96} />
       </View>
     );
   }

@@ -14,12 +14,18 @@ const responseCache = {};
 function getAIInstance() {
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "EXPO_PUBLIC_GEMINI_API_KEY is not configured. Add it to your local environment."
+    console.warn(
+      "EXPO_PUBLIC_GEMINI_API_KEY is not configured. Using the curriculum fallback."
     );
+    return null;
   }
 
-  return new GoogleGenAI({ apiKey });
+  try {
+    return new GoogleGenAI({ apiKey });
+  } catch (e) {
+    console.warn("GoogleGenAI init warning:", e?.message);
+    return null;
+  }
 }
 
 // Dummy response for development
@@ -161,6 +167,9 @@ export async function generateContentWithAI(userInput) {
   }
 
   const ai = getAIInstance();
+  if (!ai) {
+    return getFallbackResponse(userInput);
+  }
   const config = {
     generationConfig: {
       responseMimeType: "application/json",

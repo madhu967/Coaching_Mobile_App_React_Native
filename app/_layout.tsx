@@ -1,21 +1,99 @@
+import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import { UserDetailContext } from "../context/UserDetailContext";
 import { RoleProvider } from "../context/RoleContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
-import { useEffect, useState } from "react";
-import { Platform, View, ActivityIndicator } from "react-native";
+import {
+  Platform,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { QUICKSAND_FONT_MAP } from "../constant/Fonts";
 import Colors from "../constant/Colors";
 
-function ThemedStack({ fontsLoaded }: { fontsLoaded: boolean }) {
+class RootErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; errorMessage: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: "" };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return {
+      hasError: true,
+      errorMessage: error?.message || "Unexpected runtime error",
+    };
+  }
+
+  componentDidCatch(error: any, info: any) {
+    console.warn("RootErrorBoundary caught error:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#F6F7FA",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#0D0D0D",
+              marginBottom: 8,
+              textAlign: "center",
+            }}
+          >
+            Coaching Guru
+          </Text>
+          <Text
+            style={{
+              fontSize: 13,
+              color: "#6B7280",
+              marginBottom: 18,
+              textAlign: "center",
+            }}
+          >
+            {this.state.errorMessage}
+          </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, errorMessage: "" })}
+            style={{
+              backgroundColor: "#0D0D0D",
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderRadius: 14,
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+              Reload App
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ThemedStack() {
   const { colors } = useTheme();
   return (
     <Stack
-      key={fontsLoaded ? "fonts-loaded" : "fonts-fallback"}
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: colors.BG_LIGHT },
+        contentStyle: { backgroundColor: colors?.BG_LIGHT || "#F6F7FA" },
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -47,7 +125,7 @@ export default function RootLayout() {
 
     const timer = setTimeout(() => {
       setReadyFallback(true);
-    }, 1000);
+    }, 600);
 
     return () => clearTimeout(timer);
   }, []);
@@ -57,24 +135,27 @@ export default function RootLayout() {
       <View
         style={{
           flex: 1,
-          backgroundColor: Colors.BG_LIGHT,
+          backgroundColor: Colors.BG_LIGHT || "#F6F7FA",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ActivityIndicator size="small" color={Colors.BLACK} />
+        <ActivityIndicator size="small" color={Colors.BLACK || "#0D0D0D"} />
       </View>
     );
   }
 
   return (
-    <ThemeProvider>
-      <RoleProvider>
-        <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
-          <ThemedStack fontsLoaded={Boolean(fontsLoaded)} />
-        </UserDetailContext.Provider>
-      </RoleProvider>
-    </ThemeProvider>
+    <RootErrorBoundary>
+      <ThemeProvider>
+        <RoleProvider>
+          <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
+            <ThemedStack />
+          </UserDetailContext.Provider>
+        </RoleProvider>
+      </ThemeProvider>
+    </RootErrorBoundary>
   );
 }
+
 

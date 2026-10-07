@@ -31,28 +31,14 @@ export const QUICKSAND_TTF_URLS = {
 };
 
 export const QUICKSAND_FONT_MAP = {
-  // Primary app font aliases (bundled locally for Android/iOS APKs)
   outfit: LOCAL_REGULAR_FONT,
   "outfit-light": LOCAL_REGULAR_FONT,
   "outfit-regular": LOCAL_REGULAR_FONT,
   "outfit-medium": LOCAL_REGULAR_FONT,
   "outfit-semibold": LOCAL_BOLD_FONT,
   "outfit-bold": LOCAL_BOLD_FONT,
-
-  // Explicit Quicksand family names
   Quicksand: LOCAL_REGULAR_FONT,
-  "Quicksand-Light": LOCAL_REGULAR_FONT,
-  "Quicksand-Regular": LOCAL_REGULAR_FONT,
-  "Quicksand-Medium": LOCAL_REGULAR_FONT,
-  "Quicksand-SemiBold": LOCAL_BOLD_FONT,
   "Quicksand-Bold": LOCAL_BOLD_FONT,
-
-  quicksand: LOCAL_REGULAR_FONT,
-  "quicksand-light": LOCAL_REGULAR_FONT,
-  "quicksand-regular": LOCAL_REGULAR_FONT,
-  "quicksand-medium": LOCAL_REGULAR_FONT,
-  "quicksand-semibold": LOCAL_BOLD_FONT,
-  "quicksand-bold": LOCAL_BOLD_FONT,
 };
 
 const Fonts = {
@@ -64,4 +50,5 @@ const Fonts = {
 };
 
 export default Fonts;
+
 

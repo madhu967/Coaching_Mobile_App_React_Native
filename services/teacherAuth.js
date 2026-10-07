@@ -30,14 +30,8 @@ export async function loginTeacher(email, password) {
   }
 
   const defaultEnvPass = process.env.EXPO_PUBLIC_DEFAULT_TEACHER_PASSWORD;
-  if (!defaultEnvPass) {
-    return {
-      success: false,
-      message: "Teacher authentication is not configured. Please contact your administrator.",
-    };
-  }
-  const teacherPassword = (teacher.password || defaultEnvPass).trim();
-  if (teacherPassword !== inputPassword && inputPassword !== defaultEnvPass) {
+  const teacherPassword = (teacher.password || defaultEnvPass || "").trim();
+  if (!teacherPassword || teacherPassword !== inputPassword) {
     return {
       success: false,
       message: "Incorrect password. Please verify with your platform administrator.",

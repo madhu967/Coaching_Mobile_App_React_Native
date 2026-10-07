@@ -18,13 +18,13 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
-    "expo": "~57.0.26",
-    "expo-constants": "~57.0.20",
+    "expo": "~57.0.27",
+    "expo-constants": "~57.0.21",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
-    "expo-linking": "~57.0.11",
-    "expo-router": "~57.0.24",
+    "expo-linking": "~57.0.12",
+    "expo-router": "~57.0.25",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
@@ -47,6 +47,16 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo",
+        "expo-constants",
+        "expo-linking",
+        "expo-router"
+      ]
+    }
   },
   "private": true
 }

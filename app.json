@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "coachingapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.coachingguru.app"
@@ -19,9 +18,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      }
     },
     "web": {
       "output": "static",
@@ -43,7 +40,6 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-status-bar",
       "expo-web-browser"
     ],
     "experiments": {

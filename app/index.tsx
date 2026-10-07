@@ -65,20 +65,30 @@ export default function Index() {
 
   useEffect(() => {
     if (!auth) return;
-    let unsubscribe;
+    let isMounted = true;
+    let redirectTimer: any = null;
+    let unsubscribe: any;
     try {
       unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (!isMounted) return;
         if (user && user.email) {
           try {
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Timeout")), 2000)
-            );
-            const result = await Promise.race([
-              getDoc(doc(db, "users", user.email)),
-              timeoutPromise,
-            ]);
-            if (result && result.exists()) {
-              setUserDetail(result.data());
+            if (db) {
+              const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), 2000)
+              );
+              const result: any = await Promise.race([
+                getDoc(doc(db, "users", user.email)),
+                timeoutPromise,
+              ]);
+              if (result && typeof result.exists === "function" && result.exists()) {
+                setUserDetail(result.data());
+              } else {
+                setUserDetail({
+                  email: user.email,
+                  name: user.displayName || user.email.split("@")[0],
+                });
+              }
             } else {
               setUserDetail({
                 email: user.email,
@@ -91,13 +101,23 @@ export default function Index() {
               name: user.displayName || user.email.split("@")[0],
             });
           }
-          router.replace("/Home");
+          redirectTimer = setTimeout(() => {
+            if (isMounted) {
+              try {
+                router.replace("/Home");
+              } catch (navErr) {
+                console.warn("Navigation replace deferred:", navErr);
+              }
+            }
+          }, 120);
         }
       });
     } catch (err) {
       console.warn("Auth listener skipped:", err);
     }
     return () => {
+      isMounted = false;
+      if (redirectTimer) clearTimeout(redirectTimer);
       if (typeof unsubscribe === "function") unsubscribe();
     };
   }, []);

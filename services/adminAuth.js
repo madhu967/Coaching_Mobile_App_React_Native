@@ -5,13 +5,11 @@ const ADMIN_STORAGE_KEY = "@admin_logged_in";
 export const getAdminCredentials = () => {
   const email = process.env.EXPO_PUBLIC_ADMIN_EMAIL;
   const password = process.env.EXPO_PUBLIC_ADMIN_PASSWORD;
-  if (!email || !password) {
-    throw new Error(
-      "Admin credentials are not configured. Add EXPO_PUBLIC_ADMIN_EMAIL and EXPO_PUBLIC_ADMIN_PASSWORD."
-    );
-  }
 
-  return { email: email.trim().toLowerCase(), password: password.trim() };
+  return {
+    email: email?.trim().toLowerCase() || "",
+    password: password?.trim() || "",
+  };
 };
 
 /**
